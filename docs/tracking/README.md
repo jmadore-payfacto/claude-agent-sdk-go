@@ -9,7 +9,7 @@ Tracks all Python SDK PRs that need to be replayed into the Go SDK to restore pa
 | Snapshot date | April 12, 2026 |
 | Coverage window | Jan 6, 2026 - April 12, 2026 |
 | Parity milestone | Go PR #77 (Jan 6, 2026) - formal parity documentation |
-| Last ported feature | Phase 1 complete (Apr 13, 2026) - items #1-#8 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598) |
+| Last ported feature | Go PR #117 (Apr 13, 2026) - Phase 1 items #1-#8 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598) |
 | Python SDK at checkpoint | v0.1.22 |
 | Python SDK at snapshot | v0.1.58 |
 
@@ -29,14 +29,14 @@ PRs merged after April 12, 2026 are NOT tracked here. Add them manually and upda
 | # | Py PR | Title | Merged | Cat | Go Status | Go PR | Notes |
 |:--|:------|:------|:-------|:----|:----------|:------|:------|
 | - | #495 | tool_use_result on UserMessage | Jan 23 | feat | done | #99 | Added ToolUseResult map[string]any field to UserMessage with HasToolUseResult()/GetToolUseResult() helpers |
-| 1 | #516 | get_mcp_status() method | Jan 26 | feat | done | - | GetMcpStatus(ctx) on Client/Transport/Protocol; McpServerConnectionStatus type + constants (connected/failed/needs-auth/pending/disabled); McpServerStatus/McpStatusResponse/McpServerInfo/McpToolInfo types in `internal/control/types.go`; all re-exported from root. commit 33f6397 |
-| 2 | #535 | PostToolUseFailure hook event | Jan 30 | feat | done | - | HookEventPostToolUseFailure constant; PostToolUseFailureHookInput (ToolName/ToolInput/ToolUseID/Error/IsInterrupt/AgentID/AgentType); PostToolUseFailureHookSpecificOutput; parseHookInput case; re-exported from options.go. commit 7aee9af |
-| 3 | #506 | Properly populate AssistantMessage error field | Feb 3 | fix | done | - | parseAssistantMessage() now reads error from top-level data (not messageData); handles object form {"type":"rate_limit",...} and plain string. commit 7aee9af |
-| 4 | #545 | Missing hook events + fix fields | Feb 3 | feat | done | - | HookEventNotification/SubagentStart/PermissionRequest constants + input/output structs; ToolUseID/AgentID/AgentType added to PreToolUse/PostToolUse inputs; AgentID/AgentTranscriptPath/AgentType to SubagentStop; getBoolPtr/getSlice helpers. commit 7aee9af |
-| 5 | #551 | MCP tool annotations | Feb 5 | feat | done | - | McpToolAnnotations (ReadOnly/Destructive/OpenWorld *bool) in shared/options.go; Annotations field on McpToolDefinition; control.McpToolAnnotations is type alias of shared.McpToolAnnotations; McpToolInfo in control/types.go for status responses. commit 33f6397 |
-| 6 | #468 | Send agent definitions via initialize request | Feb 5 | feat | done | - | Agents field on InitializeRequest; Protocol.Initialize() builds agents map from Options.Agents; WithOptions() ProtocolOption added; --agents CLI flag removed (addAgentFlags deleted); needsProtocolHandshake() triggers on agents. commit 33f6397 |
-| 7 | #565 | ThinkingConfig types and effort option | Feb 11 | feat | done | - | ThinkingConfig sealed union interface (Adaptive/Enabled/Disabled); Thinking/Effort fields on Options; WithThinking/WithThinkingAdaptive/WithThinkingBudget/WithThinkingDisabled/WithEffort options; CLI: --thinking adaptive/disabled, --max-thinking-tokens N, --effort; WithMaxThinkingTokens deprecated. commit c253e71 |
-| 8 | #598 | Handle unknown message types gracefully | Feb 20 | fix | done | - | RawMessage/RawContentBlock types in internal/shared (field RawBlockType not BlockType_ - linter); ParseMessage() default returns *RawMessage; parseContentBlock() default returns *RawContentBlock; re-exported from root types.go. commit 7aee9af |
+| 1 | #516 | get_mcp_status() method | Jan 26 | feat | done | #117 | GetMcpStatus(ctx) on Client/Transport/Protocol; McpServerConnectionStatus type + constants (connected/failed/needs-auth/pending/disabled); McpServerStatus/McpStatusResponse/McpServerInfo/McpToolInfo types in `internal/control/types.go`; all re-exported from root. |
+| 2 | #535 | PostToolUseFailure hook event | Jan 30 | feat | done | #117 | HookEventPostToolUseFailure constant; PostToolUseFailureHookInput (ToolName/ToolInput/ToolUseID/Error/IsInterrupt/AgentID/AgentType); PostToolUseFailureHookSpecificOutput; parseHookInput case; re-exported from options.go. |
+| 3 | #506 | Properly populate AssistantMessage error field | Feb 3 | fix | done | #117 | parseAssistantMessage() now reads error from top-level data (not messageData); handles object form {"type":"rate_limit",...} and plain string. |
+| 4 | #545 | Missing hook events + fix fields | Feb 3 | feat | done | #117 | HookEventNotification/SubagentStart/PermissionRequest constants + input/output structs; ToolUseID/AgentID/AgentType added to PreToolUse/PostToolUse inputs; AgentID/AgentTranscriptPath/AgentType to SubagentStop; getBoolPtr/getSlice helpers. |
+| 5 | #551 | MCP tool annotations | Feb 5 | feat | done | #117 | McpToolAnnotations (ReadOnly/Destructive/OpenWorld *bool) in shared/options.go; Annotations field on McpToolDefinition; control.McpToolAnnotations is type alias of shared.McpToolAnnotations; McpToolInfo in control/types.go for status responses. |
+| 6 | #468 | Send agent definitions via initialize request | Feb 5 | feat | done | #117 | Agents field on InitializeRequest; Protocol.Initialize() builds agents map from Options.Agents; WithOptions() ProtocolOption added; --agents CLI flag removed (addAgentFlags deleted); needsProtocolHandshake() triggers on agents. |
+| 7 | #565 | ThinkingConfig types and effort option | Feb 11 | feat | done | #117 | ThinkingConfig sealed union interface (Adaptive/Enabled/Disabled); Thinking/Effort fields on Options; WithThinking/WithThinkingAdaptive/WithThinkingBudget/WithThinkingDisabled/WithEffort options; CLI: --thinking adaptive/disabled, --max-thinking-tokens N, --effort; WithMaxThinkingTokens deprecated. |
+| 8 | #598 | Handle unknown message types gracefully | Feb 20 | fix | done | #117 | RawMessage/RawContentBlock types in internal/shared (field RawBlockType not BlockType_ - linter); ParseMessage() default returns *RawMessage; parseContentBlock() default returns *RawContentBlock; re-exported from root types.go. |
 
 ---
 
