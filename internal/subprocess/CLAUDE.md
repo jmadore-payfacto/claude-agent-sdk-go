@@ -41,6 +41,8 @@ subprocess/
 - Protocol adapter: Bridges subprocess stdin to `control.Transport` interface
 - Resource cleanup: Always close stdin before waiting for process exit
 - Init error routing: `routeInitError()` in io.go detects error `ResultMessage` before `t.connected` is set and calls `protocol.HandleControlInitErr()`; `formatInitError()` builds error string with priority: `Errors` slice > `Result` field > `Subtype` fallback
+- Protocol options wiring: `buildProtocolOptions()` in config.go appends `control.WithOptions(t.options)` so agents flow through the Initialize handshake instead of via CLI flags
+- GetMcpStatus delegation: `Transport.GetMcpStatus()` in config.go delegates to `protocol.GetMcpStatus()`; only available in streaming mode (closeStdin == false)
 
 <!-- END AUTO-MANAGED -->
 
