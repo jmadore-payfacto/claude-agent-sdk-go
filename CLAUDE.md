@@ -122,10 +122,10 @@ make ci                           # Run full CI pipeline locally
 - Conventional commit messages: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 - Issue references in commits: `(Issue #N)` or `(#N)`, use `Closes #N` in PR body
 - PR-based workflow with CI checks
-- Recent focus: Phase 1 parity complete - all 8 items ported (GetMcpStatus, PostToolUseFailure hook, AssistantMessage error fix, hook events, McpToolAnnotations, agents-in-initialize, ThinkingConfig, RawMessage/RawContentBlock); next up: Phase 2 items #9-#20 (stop_reason on ResultMessage, MCP reconnect/toggle, typed task messages, list_sessions, per-turn usage, etc.)
+- Recent focus: Phase 1 parity complete via Go PR #117 - all 8 items ported (GetMcpStatus, PostToolUseFailure hook, AssistantMessage error fix, hook events, McpToolAnnotations, agents-in-initialize, ThinkingConfig, RawMessage/RawContentBlock); next up: Phase 2 items #9-#20 (stop_reason on ResultMessage, MCP reconnect/toggle, typed task messages, list_sessions, per-turn usage on AssistantMessage, skills/memory/mcpServers on AgentDefinition, CLAUDE_CODE_ENTRYPOINT set-if-absent, etc.)
 - Benchmark organization: Table-driven benchmarks across all core modules (options, parser, shared, control, cli)
 - Makefile integration: All code quality checks (fmt, vet, lint, cyclo) unified under `make check`
-- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); Phase 1 complete - all 8 items ported (commits c253e71, 7aee9af, 33f6397); last ported features: errors field on ResultMessage (Go PR #114, Python PR #749), ThinkingConfig union type + WithEffort option (Phase 1 #7), AssistantMessage error from top-level data + RawMessage/RawContentBlock for unknown types (Phase 1 #3, #8), PostToolUseFailure + Notification/SubagentStart/PermissionRequest hook events (Phase 1 #2, #4), GetMcpStatus + McpToolAnnotations + agents-in-initialize (Phase 1 #1, #5, #6)
+- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); Phase 1 complete via Go PR #117 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598); last ported features: Phase 1 items #1-#8 (Go PR #117), errors field on ResultMessage (Go PR #114, Python PR #749)
 
 <!-- END AUTO-MANAGED -->
 
