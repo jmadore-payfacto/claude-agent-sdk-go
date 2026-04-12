@@ -126,12 +126,21 @@ type Transport interface {
 	// RewindFiles reverts tracked files to their state at a specific user message.
 	// Requires file checkpointing to be enabled and control protocol initialized.
 	RewindFiles(ctx context.Context, userMessageID string) error
+	// GetMcpStatus returns the current status of all connected MCP servers.
+	// Only works in streaming mode (after Connect()).
+	GetMcpStatus(ctx context.Context) (*McpStatusResponse, error)
 	Close() error
 	GetValidator() *StreamValidator
 }
 
 // RawControlMessage wraps raw control protocol messages for passthrough.
 type RawControlMessage = shared.RawControlMessage
+
+// RawMessage is returned for unrecognized message types (forward-compatibility).
+type RawMessage = shared.RawMessage
+
+// RawContentBlock is returned for unrecognized content block types (forward-compatibility).
+type RawContentBlock = shared.RawContentBlock
 
 // StreamEvent represents a partial message update during streaming.
 type StreamEvent = shared.StreamEvent
@@ -165,6 +174,21 @@ type SetModelRequest = control.SetModelRequest
 // ControlProtocol manages bidirectional control communication with CLI.
 type ControlProtocol = control.Protocol
 
+// McpServerConnectionStatus represents the connection state of an MCP server.
+type McpServerConnectionStatus = control.McpServerConnectionStatus
+
+// McpServerInfo contains version info about a connected MCP server.
+type McpServerInfo = control.McpServerInfo
+
+// McpToolInfo describes a tool exposed by an MCP server (for status reporting).
+type McpToolInfo = control.McpToolInfo
+
+// McpServerStatus represents the status of a connected MCP server.
+type McpServerStatus = control.McpServerStatus
+
+// McpStatusResponse is the response from a get_mcp_status request.
+type McpStatusResponse = control.McpStatusResponse
+
 // Re-export control protocol subtype constants
 const (
 	// Control request subtypes
@@ -175,8 +199,18 @@ const (
 	SubtypeSetModel          = control.SubtypeSetModel
 	SubtypeHookCallback      = control.SubtypeHookCallback
 	SubtypeMcpMessage        = control.SubtypeMcpMessage
+	SubtypeGetMcpStatus      = control.SubtypeGetMcpStatus
 
 	// Control response subtypes
 	ResponseSubtypeSuccess = control.ResponseSubtypeSuccess
 	ResponseSubtypeError   = control.ResponseSubtypeError
+)
+
+// Re-export McpServerConnectionStatus constants
+const (
+	McpServerConnectionStatusConnected = control.McpServerConnectionStatusConnected
+	McpServerConnectionStatusFailed    = control.McpServerConnectionStatusFailed
+	McpServerConnectionStatusNeedsAuth = control.McpServerConnectionStatusNeedsAuth
+	McpServerConnectionStatusPending   = control.McpServerConnectionStatusPending
+	McpServerConnectionStatusDisabled  = control.McpServerConnectionStatusDisabled
 )

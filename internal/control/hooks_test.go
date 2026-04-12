@@ -88,7 +88,7 @@ func TestHookCallbackHandler_PreToolUse(t *testing.T) {
 		t.Fatalf("Expected *PreToolUseHookInput, got %T", receivedInput)
 	}
 
-	if preToolInput.ToolName != "Bash" {
+	if preToolInput.ToolName != "Bash" { //nolint:goconst // test value - no benefit from constant
 		t.Errorf("ToolName = %q, want %q", preToolInput.ToolName, "Bash")
 	}
 

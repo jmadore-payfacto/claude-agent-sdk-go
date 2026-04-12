@@ -90,10 +90,9 @@ func (p *Parser) ParseMessage(data map[string]any) (shared.Message, error) {
 	case shared.MessageTypeStreamEvent:
 		return p.parseStreamEventMessage(data)
 	default:
-		return nil, shared.NewMessageParseError(
-			fmt.Sprintf("unknown message type: %s", msgType),
-			data,
-		)
+		// Return raw message for forward-compatibility instead of erroring.
+		// New CLI versions may add message types unknown to this SDK version.
+		return &shared.RawMessage{MessageType: msgType, Data: data}, nil
 	}
 }
 
@@ -237,11 +236,19 @@ func (p *Parser) parseAssistantMessage(data map[string]any) (*shared.AssistantMe
 		blocks[i] = block
 	}
 
-	// Parse optional error field
+	// Parse optional error field from top-level data (not messageData).
+	// The error field is at the top level of the JSON, not inside the nested message object.
 	var errorPtr *shared.AssistantMessageError
-	if errorStr, ok := messageData["error"].(string); ok {
-		errType := shared.AssistantMessageError(errorStr)
-		errorPtr = &errType
+	if errObj, ok := data["error"].(map[string]any); ok {
+		// Error is an object with "type" field like {"type": "rate_limit", ...}
+		if errType, ok := errObj["type"].(string); ok {
+			errVal := shared.AssistantMessageError(errType)
+			errorPtr = &errVal
+		}
+	} else if errorStr, ok := data["error"].(string); ok {
+		// Error can also be a plain string (backward compat)
+		errVal := shared.AssistantMessageError(errorStr)
+		errorPtr = &errVal
 	}
 
 	return &shared.AssistantMessage{
@@ -359,10 +366,8 @@ func (p *Parser) parseContentBlock(blockData any) (shared.ContentBlock, error) {
 	case shared.ContentBlockTypeToolResult:
 		return p.parseToolResultBlock(data)
 	default:
-		return nil, shared.NewMessageParseError(
-			fmt.Sprintf("unknown content block type: %s", blockType),
-			data,
-		)
+		// Return raw content block for forward-compatibility.
+		return &shared.RawContentBlock{RawBlockType: blockType, Data: data}, nil
 	}
 }
 

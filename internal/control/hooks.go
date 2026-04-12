@@ -84,6 +84,9 @@ func (p *Protocol) parseHookInput(event HookEvent, inputData map[string]any) any
 			HookEventName: "PreToolUse",
 			ToolName:      getString(inputData, "tool_name"),
 			ToolInput:     getMap(inputData, "tool_input"),
+			ToolUseID:     getString(inputData, "tool_use_id"),
+			AgentID:       getStringPtr(inputData, "agent_id"),
+			AgentType:     getStringPtr(inputData, "agent_type"),
 		}
 	case HookEventPostToolUse:
 		return &PostToolUseHookInput{
@@ -92,6 +95,21 @@ func (p *Protocol) parseHookInput(event HookEvent, inputData map[string]any) any
 			ToolName:      getString(inputData, "tool_name"),
 			ToolInput:     getMap(inputData, "tool_input"),
 			ToolResponse:  inputData["tool_response"],
+			ToolUseID:     getString(inputData, "tool_use_id"),
+			AgentID:       getStringPtr(inputData, "agent_id"),
+			AgentType:     getStringPtr(inputData, "agent_type"),
+		}
+	case HookEventPostToolUseFailure:
+		return &PostToolUseFailureHookInput{
+			BaseHookInput: base,
+			HookEventName: "PostToolUseFailure",
+			ToolName:      getString(inputData, "tool_name"),
+			ToolInput:     getMap(inputData, "tool_input"),
+			ToolUseID:     getString(inputData, "tool_use_id"),
+			Error:         getString(inputData, "error"),
+			IsInterrupt:   getBoolPtr(inputData, "is_interrupt"),
+			AgentID:       getStringPtr(inputData, "agent_id"),
+			AgentType:     getStringPtr(inputData, "agent_type"),
 		}
 	case HookEventUserPromptSubmit:
 		return &UserPromptSubmitHookInput{
@@ -107,9 +125,12 @@ func (p *Protocol) parseHookInput(event HookEvent, inputData map[string]any) any
 		}
 	case HookEventSubagentStop:
 		return &SubagentStopHookInput{
-			BaseHookInput:  base,
-			HookEventName:  "SubagentStop",
-			StopHookActive: getBool(inputData, "stop_hook_active"),
+			BaseHookInput:       base,
+			HookEventName:       "SubagentStop",
+			StopHookActive:      getBool(inputData, "stop_hook_active"),
+			AgentID:             getString(inputData, "agent_id"),
+			AgentTranscriptPath: getString(inputData, "agent_transcript_path"),
+			AgentType:           getString(inputData, "agent_type"),
 		}
 	case HookEventPreCompact:
 		return &PreCompactHookInput{
@@ -117,6 +138,31 @@ func (p *Protocol) parseHookInput(event HookEvent, inputData map[string]any) any
 			HookEventName:      "PreCompact",
 			Trigger:            getString(inputData, "trigger"),
 			CustomInstructions: getStringPtr(inputData, "custom_instructions"),
+		}
+	case HookEventNotification:
+		return &NotificationHookInput{
+			BaseHookInput:    base,
+			HookEventName:    "Notification",
+			Message:          getString(inputData, "message"),
+			Title:            getStringPtr(inputData, "title"),
+			NotificationType: getString(inputData, "notification_type"),
+		}
+	case HookEventSubagentStart:
+		return &SubagentStartHookInput{
+			BaseHookInput: base,
+			HookEventName: "SubagentStart",
+			AgentID:       getString(inputData, "agent_id"),
+			AgentType:     getString(inputData, "agent_type"),
+		}
+	case HookEventPermissionRequest:
+		return &PermissionRequestHookInput{
+			BaseHookInput:         base,
+			HookEventName:         "PermissionRequest",
+			ToolName:              getString(inputData, "tool_name"),
+			ToolInput:             getMap(inputData, "tool_input"),
+			PermissionSuggestions: getSlice(inputData, "permission_suggestions"),
+			AgentID:               getStringPtr(inputData, "agent_id"),
+			AgentType:             getStringPtr(inputData, "agent_type"),
 		}
 	default:
 		// Forward compatibility - return raw input for unknown events
@@ -282,4 +328,18 @@ func getMap(m map[string]any, key string) map[string]any {
 		return v
 	}
 	return make(map[string]any)
+}
+
+func getBoolPtr(m map[string]any, key string) *bool {
+	if v, ok := m[key].(bool); ok {
+		return &v
+	}
+	return nil
+}
+
+func getSlice(m map[string]any, key string) []any {
+	if v, ok := m[key].([]any); ok {
+		return v
+	}
+	return nil
 }
