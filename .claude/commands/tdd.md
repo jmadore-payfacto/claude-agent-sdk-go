@@ -47,11 +47,18 @@ Retrieve and analyze issue #$ARGUMENTS:
 Understand existing patterns to match the project's conventions:
 
 1. **Review Python SDK Reference:**
-   - **Fetch official documentation** using `curl -s https://platform.claude.com/docs/en/agent-sdk/python.md` - this is the authoritative Python SDK API reference
-   - Locate corresponding implementation in `../claude-agent-sdk-python/` (local clone)
-   - Understand the behavior that needs 100% parity
-   - Note any Go-specific adaptations needed
-   - **Check parity tracker** - Read `docs/tracking/README.md` to find if this issue maps to a tracked Python SDK PR. If a tracker entry exists, use the Python PR number as the authoritative reference and read the corresponding Python source changes for exact behavior to replicate.
+   - **Check parity tracker first** - Read `docs/tracking/README.md` to find if this issue maps to a tracked Python SDK PR. If a tracker entry exists, use the Python PR number as the authoritative reference.
+   - **Read Python source directly** - Tracker notes are intentionally brief summaries, not the full spec. Read the actual Python source files at `../claude-agent-sdk-python/` for exact behavior:
+     - `src/claude_agent_sdk/types.py` - all public type definitions (messages, options, hooks)
+     - `src/claude_agent_sdk/client.py` - public Client interface
+     - `src/claude_agent_sdk/_internal/client.py` - internal client/transport implementation
+     - `src/claude_agent_sdk/_internal/transport/subprocess_cli.py` - subprocess/protocol logic
+     - `src/claude_agent_sdk/_internal/message_parser.py` - message parsing
+     - `src/claude_agent_sdk/_internal/sessions.py` - session management
+     - `src/claude_agent_sdk/_internal/session_mutations.py` - session mutations (rename, tag, etc.)
+   - **Verify exact details from Python source:** field names, JSON tags, optional vs required, default values, serialization behavior - flag any divergence that isn't justified by Go idiom
+   - **Fetch official documentation** using `curl -s https://platform.claude.com/docs/en/agent-sdk/python.md` for public API signatures if helpful
+   - Note any Go-specific adaptations needed (e.g., pointer for optional fields, interface for union types)
 
 2. **Discover Existing Patterns:**
    - Search for similar implementations in the codebase
@@ -211,10 +218,14 @@ Verify:
 
 ### Python SDK Alignment Check
 
-1. **Compare behavior** with Python SDK reference implementation
-2. **Reference official docs** - `curl -s https://platform.claude.com/docs/en/agent-sdk/python.md` for API signatures and behavior
+1. **Re-read the Python source** at `../claude-agent-sdk-python/` for each implemented feature - verify:
+   - Type names and JSON tags match exactly
+   - Optional vs required fields match (Go: pointer for optional, value for required)
+   - Behavior for edge cases (nil/None, empty collections, error paths) matches
+   - Any field the Python SDK omits with `omitempty` should be omitted in Go too
+2. **Reference official docs** - `curl -s https://platform.claude.com/docs/en/agent-sdk/python.md` for public API signatures
 3. **Verify 100% parity** on all implemented features
-4. **Document any intentional deviations** (Go-specific adaptations)
+4. **Document any intentional deviations** (Go-specific adaptations, e.g., sealed interface for union types)
 5. **Update parity tracker** - If this issue corresponds to a tracked Python PR in `docs/tracking/README.md`, update the entry: set Go Status to `done` and fill in the Go PR number
 
 ### Test Authenticity Verification
