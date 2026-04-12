@@ -1214,6 +1214,10 @@ func (c *clientMockTransport) RewindFiles(_ context.Context, _ string) error {
 	return nil
 }
 
+func (c *clientMockTransport) GetMcpStatus(_ context.Context) (*McpStatusResponse, error) {
+	return &McpStatusResponse{McpServers: []McpServerStatus{}}, nil
+}
+
 // Streamlined Mock Transport Options - reduced from 11 to 6 essential functions
 type ClientMockTransportOption func(*clientMockTransport)
 

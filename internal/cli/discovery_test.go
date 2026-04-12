@@ -1395,12 +1395,12 @@ func validateNoJSONSchemaFlag(t *testing.T, cmd []string) {
 
 const agentsFlag = "--agents"
 
-// TestAgentsFlagSupport tests --agents CLI flag generation
+// TestAgentsFlagSupport verifies that agents are NOT sent via --agents CLI flag.
+// Agents are now sent via the Initialize control protocol request (Python SDK PR #468).
 func TestAgentsFlagSupport(t *testing.T) {
 	tests := []struct {
-		name     string
-		options  *shared.Options
-		validate func(*testing.T, []string)
+		name    string
+		options *shared.Options
 	}{
 		{
 			name: "single_agent",
@@ -1414,7 +1414,6 @@ func TestAgentsFlagSupport(t *testing.T) {
 					},
 				},
 			},
-			validate: validateSingleAgentFlag,
 		},
 		{
 			name: "multiple_agents",
@@ -1430,7 +1429,6 @@ func TestAgentsFlagSupport(t *testing.T) {
 					},
 				},
 			},
-			validate: validateMultipleAgentsFlag,
 		},
 		{
 			name: "omit_nil_fields",
@@ -1439,110 +1437,33 @@ func TestAgentsFlagSupport(t *testing.T) {
 					"minimal": {
 						Description: "Minimal agent",
 						Prompt:      "Minimal prompt",
-						// Tools and Model are empty/nil
 					},
 				},
 			},
-			validate: validateMinimalAgentFlag,
 		},
 		{
 			name: "empty_agents",
 			options: &shared.Options{
 				Agents: map[string]shared.AgentDefinition{},
 			},
-			validate: validateNoAgentsFlag,
 		},
 		{
 			name: "nil_agents",
 			options: &shared.Options{
 				Agents: nil,
 			},
-			validate: validateNoAgentsFlag,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cmd := BuildCommand("/usr/local/bin/claude", test.options, true)
-			test.validate(t, cmd)
+			// Agents must NOT be in CLI flags; they are sent via Initialize control request
+			assertNotContainsArg(t, cmd, agentsFlag)
 		})
 	}
 }
 
-func validateSingleAgentFlag(t *testing.T, cmd []string) {
-	t.Helper()
-	// Find the --agents flag and verify JSON content
-	for i, arg := range cmd {
-		if arg == agentsFlag && i+1 < len(cmd) {
-			value := cmd[i+1]
-			// Should contain the agent definition with all fields
-			if !strings.Contains(value, `"code-reviewer"`) {
-				t.Errorf("Expected --agents value to contain code-reviewer, got %q", value)
-			}
-			if !strings.Contains(value, `"description":"Reviews code"`) {
-				t.Errorf("Expected --agents value to contain description, got %q", value)
-			}
-			if !strings.Contains(value, `"prompt":"You are a reviewer..."`) {
-				t.Errorf("Expected --agents value to contain prompt, got %q", value)
-			}
-			if !strings.Contains(value, `"tools"`) {
-				t.Errorf("Expected --agents value to contain tools, got %q", value)
-			}
-			if !strings.Contains(value, `"model":"sonnet"`) {
-				t.Errorf("Expected --agents value to contain model, got %q", value)
-			}
-			return
-		}
-	}
-	t.Error("Expected --agents flag to be present")
-}
-
-func validateMultipleAgentsFlag(t *testing.T, cmd []string) {
-	t.Helper()
-	for i, arg := range cmd {
-		if arg == agentsFlag && i+1 < len(cmd) {
-			value := cmd[i+1]
-			if !strings.Contains(value, `"reviewer"`) {
-				t.Errorf("Expected --agents value to contain reviewer, got %q", value)
-			}
-			if !strings.Contains(value, `"tester"`) {
-				t.Errorf("Expected --agents value to contain tester, got %q", value)
-			}
-			return
-		}
-	}
-	t.Error("Expected --agents flag to be present")
-}
-
-func validateMinimalAgentFlag(t *testing.T, cmd []string) {
-	t.Helper()
-	for i, arg := range cmd {
-		if arg == agentsFlag && i+1 < len(cmd) {
-			value := cmd[i+1]
-			// Should contain description and prompt
-			if !strings.Contains(value, `"description":"Minimal agent"`) {
-				t.Errorf("Expected --agents value to contain description, got %q", value)
-			}
-			if !strings.Contains(value, `"prompt":"Minimal prompt"`) {
-				t.Errorf("Expected --agents value to contain prompt, got %q", value)
-			}
-			// Should NOT contain tools or model (they're empty)
-			if strings.Contains(value, `"tools"`) {
-				t.Errorf("Expected --agents value to NOT contain empty tools, got %q", value)
-			}
-			if strings.Contains(value, `"model"`) {
-				t.Errorf("Expected --agents value to NOT contain empty model, got %q", value)
-			}
-			return
-		}
-	}
-	t.Error("Expected --agents flag to be present")
-}
-
-func validateNoAgentsFlag(t *testing.T, cmd []string) {
-	t.Helper()
-	assertNotContainsArg(t, cmd, agentsFlag)
-}
 
 // TestIncludePartialMessagesFlagSupport tests CLI flag for partial message streaming
 func TestIncludePartialMessagesFlagSupport(t *testing.T) {
@@ -1801,4 +1722,50 @@ func createVersionMockCLI(t *testing.T, version string) string {
 		}
 	}
 	return mockCLI
+}
+
+// TestAgentsNotInCLIFlags verifies that agents are no longer sent via --agents CLI flag.
+// Agents are now sent via the Initialize control protocol request (Python SDK PR #468).
+func TestAgentsNotInCLIFlags(t *testing.T) {
+	options := &shared.Options{
+		Agents: map[string]shared.AgentDefinition{
+			"researcher": {
+				Description: "A research agent",
+				Prompt:      "You research topics thoroughly.",
+				Tools:       []string{"Read", "WebSearch"},
+				Model:       shared.AgentModelSonnet,
+			},
+		},
+	}
+
+	cmd := BuildCommand("/usr/local/bin/claude", options, false)
+
+	// --agents flag must NOT appear in the CLI command
+	for _, arg := range cmd {
+		if arg == "--agents" {
+			t.Errorf("--agents flag must not be in CLI command; agents are sent via control protocol Initialize request. Got: %v", cmd)
+			return
+		}
+	}
+}
+
+// TestAgentsNotInCLIFlagsOneShot verifies agents are absent in one-shot mode too.
+func TestAgentsNotInCLIFlagsOneShot(t *testing.T) {
+	options := &shared.Options{
+		Agents: map[string]shared.AgentDefinition{
+			"writer": {
+				Description: "A writing agent",
+				Prompt:      "You write content.",
+			},
+		},
+	}
+
+	cmd := BuildCommandWithPrompt("/usr/local/bin/claude", options, "Write something")
+
+	for _, arg := range cmd {
+		if arg == "--agents" {
+			t.Errorf("--agents flag must not be in CLI command. Got: %v", cmd)
+			return
+		}
+	}
 }

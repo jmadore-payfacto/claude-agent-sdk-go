@@ -62,6 +62,7 @@ func testSubtypeConstants(t *testing.T) {
 		{"hook_callback", SubtypeHookCallback, "hook_callback"},
 		{"mcp_message", SubtypeMcpMessage, "mcp_message"},
 		{"rewind_files", SubtypeRewindFiles, "rewind_files"},
+		{"get_mcp_status", SubtypeGetMcpStatus, "get_mcp_status"},
 	}
 
 	for _, tc := range tests {
@@ -896,6 +897,314 @@ func testInterruptSendsRequest(t *testing.T) {
 		t.Fatal("request should be a map")
 	}
 	assertControlEqual(t, SubtypeInterrupt, request["subtype"])
+}
+
+// =============================================================================
+// Phase 7: GetMcpStatus Tests (Python SDK PR #516)
+// =============================================================================
+
+func TestGetMcpStatus(t *testing.T) {
+	t.Run("returns_mcp_server_statuses", testGetMcpStatusReturnsServers)
+	t.Run("handles_empty_servers", testGetMcpStatusEmptyServers)
+	t.Run("request_has_correct_subtype", testGetMcpStatusRequestSubtype)
+}
+
+func testGetMcpStatusReturnsServers(t *testing.T) {
+	t.Helper()
+
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	// Auto-respond with MCP status data
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		if err := json.Unmarshal(transport.writtenData[0], &req); err != nil {
+			transport.mu.Unlock()
+			return
+		}
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{
+			"mcpServers": []any{
+				map[string]any{
+					"name":   "my-server",
+					"status": "connected",
+					"serverInfo": map[string]any{
+						"name":    "My MCP Server",
+						"version": "1.0.0",
+					},
+				},
+				map[string]any{
+					"name":   "failing-server",
+					"status": "failed",
+					"error":  "connection refused",
+				},
+			},
+		})
+	}()
+
+	result, err := protocol.GetMcpStatus(ctx)
+	assertControlNoError(t, err)
+
+	if result == nil {
+		t.Fatal("expected non-nil McpStatusResponse")
+		return
+	}
+	if len(result.McpServers) != 2 {
+		t.Fatalf("expected 2 servers, got %d", len(result.McpServers))
+	}
+
+	connected := result.McpServers[0]
+	assertControlEqual(t, "my-server", connected.Name)
+	assertControlEqual(t, McpServerConnectionStatus("connected"), connected.Status)
+	if connected.ServerInfo == nil {
+		t.Fatal("expected non-nil ServerInfo for connected server")
+	}
+	assertControlEqual(t, "My MCP Server", connected.ServerInfo.Name)
+
+	failed := result.McpServers[1]
+	assertControlEqual(t, "failing-server", failed.Name)
+	assertControlEqual(t, McpServerConnectionStatus("failed"), failed.Status)
+	if failed.Error == nil {
+		t.Fatal("expected non-nil Error for failed server")
+	}
+	assertControlEqual(t, "connection refused", *failed.Error)
+}
+
+func testGetMcpStatusEmptyServers(t *testing.T) {
+	t.Helper()
+
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	// Respond with empty server list
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		if err := json.Unmarshal(transport.writtenData[0], &req); err != nil {
+			transport.mu.Unlock()
+			return
+		}
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{
+			"mcpServers": []any{},
+		})
+	}()
+
+	result, err := protocol.GetMcpStatus(ctx)
+	assertControlNoError(t, err)
+
+	if result == nil {
+		t.Fatal("expected non-nil McpStatusResponse")
+		return
+	}
+	if len(result.McpServers) != 0 {
+		t.Errorf("expected 0 servers, got %d", len(result.McpServers))
+	}
+}
+
+func testGetMcpStatusRequestSubtype(t *testing.T) {
+	t.Helper()
+
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		if err := json.Unmarshal(transport.writtenData[0], &req); err != nil {
+			transport.mu.Unlock()
+			return
+		}
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{"mcpServers": []any{}})
+	}()
+
+	_, err = protocol.GetMcpStatus(ctx)
+	assertControlNoError(t, err)
+
+	transport.mu.Lock()
+	defer transport.mu.Unlock()
+
+	if len(transport.writtenData) == 0 {
+		t.Fatal("expected request to be sent")
+	}
+
+	var req SDKControlRequest
+	err = json.Unmarshal(transport.writtenData[0], &req)
+	assertControlNoError(t, err)
+
+	request, ok := req.Request.(map[string]any)
+	if !ok {
+		t.Fatal("request should be a map")
+	}
+	assertControlEqual(t, SubtypeGetMcpStatus, request["subtype"])
+}
+
+// =============================================================================
+// Phase 8: Agents-in-Initialize Tests (Python SDK PR #468)
+// =============================================================================
+
+func TestInitializeWithAgents(t *testing.T) {
+	t.Run("agents_included_in_request", testInitializeIncludesAgents)
+	t.Run("no_agents_field_when_empty", testInitializeNoAgentsWhenEmpty)
+}
+
+func testInitializeIncludesAgents(t *testing.T) {
+	t.Helper()
+
+	data, err := json.Marshal(InitializeRequest{
+		Subtype: SubtypeInitialize,
+		Agents: map[string]map[string]any{
+			"researcher": {
+				"description": "A research agent",
+				"prompt":      "You research topics thoroughly.",
+				"tools":       []string{"Read", "WebSearch"},
+				"model":       "sonnet",
+			},
+		},
+	})
+	assertControlNoError(t, err)
+
+	var parsed map[string]any
+	err = json.Unmarshal(data, &parsed)
+	assertControlNoError(t, err)
+
+	assertControlEqual(t, SubtypeInitialize, parsed["subtype"])
+
+	agents, ok := parsed["agents"].(map[string]any)
+	if !ok {
+		t.Fatal("expected agents field in initialize request")
+	}
+
+	researcher, ok := agents["researcher"].(map[string]any)
+	if !ok {
+		t.Fatal("expected researcher agent in agents map")
+	}
+	assertControlEqual(t, "A research agent", researcher["description"])
+	assertControlEqual(t, "You research topics thoroughly.", researcher["prompt"])
+	assertControlEqual(t, "sonnet", researcher["model"])
+}
+
+func testInitializeNoAgentsWhenEmpty(t *testing.T) {
+	t.Helper()
+
+	data, err := json.Marshal(InitializeRequest{
+		Subtype: SubtypeInitialize,
+	})
+	assertControlNoError(t, err)
+
+	var parsed map[string]any
+	err = json.Unmarshal(data, &parsed)
+	assertControlNoError(t, err)
+
+	// agents field should be omitted when nil
+	if _, exists := parsed["agents"]; exists {
+		t.Error("agents field should be omitted when nil")
+	}
+}
+
+// =============================================================================
+// Phase 9: McpToolAnnotations Tests (Python SDK PR #551)
+// =============================================================================
+
+func TestMcpToolAnnotations(t *testing.T) {
+	t.Run("json_round_trip", testMcpToolAnnotationsRoundTrip)
+	t.Run("omits_nil_fields", testMcpToolAnnotationsOmitsNilFields)
+	t.Run("subtype_constant_value", testGetMcpStatusSubtypeConstant)
+}
+
+func testMcpToolAnnotationsRoundTrip(t *testing.T) {
+	t.Helper()
+
+	trueVal := true
+	falseVal := false
+	annotations := McpToolAnnotations{
+		ReadOnly:    &trueVal,
+		Destructive: &falseVal,
+		OpenWorld:   &trueVal,
+	}
+
+	data, err := json.Marshal(annotations)
+	assertControlNoError(t, err)
+
+	var parsed McpToolAnnotations
+	err = json.Unmarshal(data, &parsed)
+	assertControlNoError(t, err)
+
+	if parsed.ReadOnly == nil || *parsed.ReadOnly != true {
+		t.Error("expected ReadOnly=true")
+	}
+	if parsed.Destructive == nil || *parsed.Destructive != false {
+		t.Error("expected Destructive=false")
+	}
+	if parsed.OpenWorld == nil || *parsed.OpenWorld != true {
+		t.Error("expected OpenWorld=true")
+	}
+}
+
+func testMcpToolAnnotationsOmitsNilFields(t *testing.T) {
+	t.Helper()
+
+	trueVal := true
+	annotations := McpToolAnnotations{
+		ReadOnly: &trueVal,
+	}
+
+	data, err := json.Marshal(annotations)
+	assertControlNoError(t, err)
+
+	var parsed map[string]any
+	err = json.Unmarshal(data, &parsed)
+	assertControlNoError(t, err)
+
+	if _, exists := parsed["destructive"]; exists {
+		t.Error("destructive field should be omitted when nil")
+	}
+	if _, exists := parsed["openWorld"]; exists {
+		t.Error("openWorld field should be omitted when nil")
+	}
+}
+
+func testGetMcpStatusSubtypeConstant(t *testing.T) {
+	t.Helper()
+	assertControlEqual(t, "get_mcp_status", SubtypeGetMcpStatus)
 }
 
 // =============================================================================

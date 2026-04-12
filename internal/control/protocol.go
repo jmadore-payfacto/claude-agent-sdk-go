@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/severity1/claude-agent-sdk-go/internal/shared"
 )
 
 // DefaultInitTimeout is the default timeout for the Initialize handshake.
@@ -58,6 +60,9 @@ type Protocol struct {
 	// SDK MCP servers for in-process tool handling (Issue #7)
 	sdkMcpServers map[string]McpServer
 
+	// Options for passing agents and other config into Initialize request
+	options *shared.Options
+
 	// Background goroutine management
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -103,6 +108,14 @@ func WithHookCallbacks(callbacks map[string]HookCallback) ProtocolOption {
 func WithSdkMcpServers(servers map[string]McpServer) ProtocolOption {
 	return func(p *Protocol) {
 		p.sdkMcpServers = servers
+	}
+}
+
+// WithOptions passes the SDK options to the protocol so it can include
+// agents and other options in the Initialize request.
+func WithOptions(opts *shared.Options) ProtocolOption {
+	return func(p *Protocol) {
+		p.options = opts
 	}
 }
 
@@ -390,7 +403,7 @@ func (p *Protocol) Initialize(ctx context.Context) (*InitializeResponse, error) 
 	}
 	p.mu.Unlock()
 
-	// Build initialize request with hooks configuration
+	// Build initialize request with hooks and agents configuration
 	initReq := InitializeRequest{
 		Subtype: SubtypeInitialize,
 	}
@@ -398,6 +411,25 @@ func (p *Protocol) Initialize(ctx context.Context) (*InitializeResponse, error) 
 	// Generate hook registrations and build hooks config
 	if p.hooks != nil {
 		initReq.Hooks = p.buildHooksConfig()
+	}
+
+	// Include agents if configured
+	if p.options != nil && len(p.options.Agents) > 0 {
+		agentsMap := make(map[string]map[string]any, len(p.options.Agents))
+		for name, agent := range p.options.Agents {
+			agentData := map[string]any{
+				"description": agent.Description,
+				"prompt":      agent.Prompt,
+			}
+			if len(agent.Tools) > 0 {
+				agentData["tools"] = agent.Tools
+			}
+			if agent.Model != "" {
+				agentData["model"] = string(agent.Model)
+			}
+			agentsMap[name] = agentData
+		}
+		initReq.Agents = agentsMap
 	}
 
 	// Send initialize request
@@ -476,6 +508,31 @@ func (p *Protocol) RewindFiles(ctx context.Context, userMessageID string) error 
 	}, 5*time.Second)
 
 	return err
+}
+
+// GetMcpStatus returns the current status of all connected MCP servers.
+// Returns error if the control request fails or times out.
+func (p *Protocol) GetMcpStatus(ctx context.Context) (*McpStatusResponse, error) {
+	responseData, err := p.SendControlRequest(ctx, GetMcpStatusRequest{
+		Subtype: SubtypeGetMcpStatus,
+	}, 5*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("get_mcp_status request failed: %w", err)
+	}
+
+	// responseData is map[string]any from the "response" field;
+	// marshal then unmarshal to get a typed struct.
+	data, err := json.Marshal(responseData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal mcp status response: %w", err)
+	}
+
+	var result McpStatusResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse mcp status response: %w", err)
+	}
+
+	return &result, nil
 }
 
 // ReceiveMessages returns a channel for receiving regular (non-control) messages.

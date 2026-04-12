@@ -106,6 +106,10 @@ make ci                           # Run full CI pipeline locally
 - **Benchmark tests**: Use `var sink any` to prevent dead code elimination, always call `b.ReportAllocs()` and `b.ResetTimer()`
 - **tool_use_result metadata**: `UserMessage.ToolUseResult` carries rich edit info (filePath, structuredPatch, diffs); check with `HasToolUseResult()` before accessing via `GetToolUseResult()`
 - **Init error routing**: `subprocess.routeInitError()` detects error `ResultMessage` arriving before transport is connected and calls `protocol.HandleControlInitErr()` to unblock `SendControlRequest()` via `initErrChan`
+- **ThinkingConfig union type**: `ThinkingConfig` is an interface with three implementations: `ThinkingConfigAdaptive` (model decides budget), `ThinkingConfigEnabled{BudgetTokens: N}` (explicit budget), `ThinkingConfigDisabled`; use `WithThinking()`, `WithThinkingAdaptive()`, `WithThinkingBudget(N)`, `WithThinkingDisabled()` helpers
+- **Forward-compat raw types**: `RawMessage` and `RawContentBlock` in `internal/shared` wrap unknown message/content-block types returned by the parser; `BlockType()` reads from `RawBlockType` field (not `BlockType_` - underscore suffix rejected by linter)
+- **Hook event constants**: 10 total - PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop, SubagentStop, PreCompact, Notification, SubagentStart, PermissionRequest; new events added in Phase 1 #2/#4 (Python PRs #535/#545)
+- **Hook agent fields**: PreToolUseHookInput, PostToolUseHookInput now include ToolUseID/AgentID/AgentType; SubagentStopHookInput includes AgentID/AgentTranscriptPath/AgentType; getBoolPtr/getSlice added as helper functions in hooks.go
 
 <!-- END AUTO-MANAGED -->
 
@@ -118,7 +122,7 @@ make ci                           # Run full CI pipeline locally
 - Recent focus: staticcheck SA5011 fix - add `return` after `t.Fatal()` in subtests to prevent nil pointer dereference warnings; CLI flag ordering fix - `BuildCommandWithPrompt()` places `--print <prompt>` after all option flags (Issue #111)
 - Benchmark organization: Table-driven benchmarks across all core modules (options, parser, shared, control, cli)
 - Makefile integration: All code quality checks (fmt, vet, lint, cyclo) unified under `make check`
-- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); last ported features: tool_use_result (Go PR #99), errors field on ResultMessage (Go PR #114, Python PR #749)
+- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); last ported features: tool_use_result (Go PR #99), errors field on ResultMessage (Go PR #114, Python PR #749), ThinkingConfig union type + WithEffort option (Phase 1 #7), AssistantMessage error from top-level data + RawMessage/RawContentBlock for unknown types (Phase 1 #3, #8), PostToolUseFailure + Notification/SubagentStart/PermissionRequest hook events (Phase 1 #2, #4), GetMcpStatus + McpToolAnnotations + agents-in-initialize (Phase 1 #1, #5, #6)
 
 <!-- END AUTO-MANAGED -->
 

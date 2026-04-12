@@ -8,6 +8,10 @@ import (
 	"github.com/severity1/claude-agent-sdk-go/internal/shared"
 )
 
+// McpToolAnnotations describes tool behavior hints.
+// Type alias from shared to avoid duplication across packages.
+type McpToolAnnotations = shared.McpToolAnnotations
+
 // Message type constants for control protocol discrimination.
 const (
 	// MessageTypeControlRequest is sent TO the CLI to request an action.
@@ -34,6 +38,8 @@ const (
 	SubtypeMcpMessage = "mcp_message"
 	// SubtypeRewindFiles requests file rewind to a specific user message state.
 	SubtypeRewindFiles = "rewind_files"
+	// SubtypeGetMcpStatus requests the current status of all MCP servers.
+	SubtypeGetMcpStatus = "get_mcp_status"
 )
 
 // Response subtype constants for control responses.
@@ -91,6 +97,9 @@ type InitializeRequest struct {
 	// Hooks contains hook registrations keyed by event type.
 	// Format: {"PreToolUse": [...], "PostToolUse": [...]}
 	Hooks map[string][]HookMatcherConfig `json:"hooks,omitempty"`
+	// Agents contains programmatic subagent definitions keyed by agent name.
+	// Format: {"name": {"description": "...", "prompt": "...", "tools": [...], "model": "..."}}
+	Agents map[string]map[string]any `json:"agents,omitempty"`
 }
 
 // InitializeResponse contains the CLI's response to initialization.
@@ -125,6 +134,62 @@ type RewindFilesRequest struct {
 	// UserMessageID is the UUID of the user message to rewind to.
 	// This should be obtained from UserMessage.UUID received during the session.
 	UserMessageID string `json:"user_message_id"`
+}
+
+// =============================================================================
+// MCP Status Types (Python SDK PR #516)
+// =============================================================================
+
+// McpServerConnectionStatus represents the connection state of an MCP server.
+type McpServerConnectionStatus string
+
+const (
+	// McpServerConnectionStatusConnected indicates the server is connected.
+	McpServerConnectionStatusConnected McpServerConnectionStatus = "connected"
+	// McpServerConnectionStatusFailed indicates the server connection failed.
+	McpServerConnectionStatusFailed McpServerConnectionStatus = "failed"
+	// McpServerConnectionStatusNeedsAuth indicates the server requires authentication.
+	McpServerConnectionStatusNeedsAuth McpServerConnectionStatus = "needs-auth"
+	// McpServerConnectionStatusPending indicates the server connection is pending.
+	McpServerConnectionStatusPending McpServerConnectionStatus = "pending"
+	// McpServerConnectionStatusDisabled indicates the server is disabled.
+	McpServerConnectionStatusDisabled McpServerConnectionStatus = "disabled"
+)
+
+// McpServerInfo contains version info about a connected MCP server.
+type McpServerInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// McpToolInfo describes a tool exposed by an MCP server (for status reporting).
+// NOTE: This is distinct from shared.McpToolDefinition (used for SDK MCP server tool definitions).
+// This type is used in McpServerStatus.Tools to report available tools from connected servers.
+type McpToolInfo struct {
+	Name        string              `json:"name"`
+	Description *string             `json:"description,omitempty"`
+	Annotations *McpToolAnnotations `json:"annotations,omitempty"`
+}
+
+// McpServerStatus represents the status of a connected MCP server.
+type McpServerStatus struct {
+	Name       string                    `json:"name"`
+	Status     McpServerConnectionStatus `json:"status"`
+	ServerInfo *McpServerInfo            `json:"serverInfo,omitempty"`
+	Error      *string                   `json:"error,omitempty"`
+	Scope      *string                   `json:"scope,omitempty"`
+	Tools      []McpToolInfo             `json:"tools,omitempty"`
+}
+
+// McpStatusResponse is the response payload from a get_mcp_status request.
+type McpStatusResponse struct {
+	McpServers []McpServerStatus `json:"mcpServers"`
+}
+
+// GetMcpStatusRequest requests the current status of all MCP servers.
+type GetMcpStatusRequest struct {
+	// Subtype is always SubtypeGetMcpStatus.
+	Subtype string `json:"subtype"`
 }
 
 // =============================================================================

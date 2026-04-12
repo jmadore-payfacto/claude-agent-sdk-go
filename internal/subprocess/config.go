@@ -121,6 +121,27 @@ func (t *Transport) SetPermissionMode(ctx context.Context, mode string) error {
 	return t.protocol.SetPermissionMode(ctx, mode)
 }
 
+// GetMcpStatus returns the current status of all connected MCP servers.
+// Only available in streaming mode (when closeStdin is false).
+func (t *Transport) GetMcpStatus(ctx context.Context) (*control.McpStatusResponse, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if !t.connected {
+		return nil, fmt.Errorf("transport not connected")
+	}
+
+	if t.closeStdin {
+		return nil, fmt.Errorf("GetMcpStatus not available in one-shot mode")
+	}
+
+	if t.protocol == nil {
+		return nil, fmt.Errorf("control protocol not initialized")
+	}
+
+	return t.protocol.GetMcpStatus(ctx)
+}
+
 // RewindFiles reverts tracked files to their state at a specific user message.
 // This method requires control protocol integration which is only available
 // in streaming mode (when closeStdin is false).
@@ -198,6 +219,11 @@ func (t *Transport) buildProtocolOptions() []control.ProtocolOption {
 		if len(sdkServers) > 0 {
 			opts = append(opts, control.WithSdkMcpServers(sdkServers))
 		}
+	}
+
+	// Pass options so Initialize can include agents and other config
+	if t.options != nil {
+		opts = append(opts, control.WithOptions(t.options))
 	}
 
 	return opts

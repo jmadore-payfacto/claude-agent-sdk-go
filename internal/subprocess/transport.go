@@ -221,7 +221,8 @@ func (t *Transport) needsProtocolHandshake() bool {
 	return t.options.Hooks != nil ||
 		t.options.CanUseTool != nil ||
 		t.options.EnableFileCheckpointing ||
-		t.hasSdkMcpServers()
+		t.hasSdkMcpServers() ||
+		len(t.options.Agents) > 0
 }
 
 // SendMessage sends a message to the CLI subprocess.
