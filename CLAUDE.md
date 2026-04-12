@@ -110,6 +110,9 @@ make ci                           # Run full CI pipeline locally
 - **Forward-compat raw types**: `RawMessage` and `RawContentBlock` in `internal/shared` wrap unknown message/content-block types returned by the parser; `BlockType()` reads from `RawBlockType` field (not `BlockType_` - underscore suffix rejected by linter)
 - **Hook event constants**: 10 total - PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop, SubagentStop, PreCompact, Notification, SubagentStart, PermissionRequest; new events added in Phase 1 #2/#4 (Python PRs #535/#545)
 - **Hook agent fields**: PreToolUseHookInput, PostToolUseHookInput now include ToolUseID/AgentID/AgentType; SubagentStopHookInput includes AgentID/AgentTranscriptPath/AgentType; getBoolPtr/getSlice added as helper functions in hooks.go
+- **GetMcpStatus flow**: `Client.GetMcpStatus()` -> `subprocess.Transport.GetMcpStatus()` -> `control.Protocol.GetMcpStatus()` -> `GetMcpStatusRequest{SubtypeGetMcpStatus}` -> CLI; response marshal/unmarshal to `*McpStatusResponse{McpServers []McpServerStatus}`; connection status values: connected/failed/needs-auth/pending/disabled
+- **Agents-in-initialize**: Agents sent via `InitializeRequest.Agents` (not `--agents` CLI flag); `WithOptions()` ProtocolOption passes `shared.Options` to Protocol; Initialize() builds agents map with description/prompt/tools/model fields per agent
+- **McpToolInfo vs McpToolDefinition**: `McpToolInfo` (control/types.go) reports tools from connected servers in status responses; `shared.McpToolDefinition` defines tools for SDK MCP servers - these are distinct types for distinct purposes
 
 <!-- END AUTO-MANAGED -->
 
@@ -119,7 +122,7 @@ make ci                           # Run full CI pipeline locally
 - Conventional commit messages: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 - Issue references in commits: `(Issue #N)` or `(#N)`, use `Closes #N` in PR body
 - PR-based workflow with CI checks
-- Recent focus: staticcheck SA5011 fix - add `return` after `t.Fatal()` in subtests to prevent nil pointer dereference warnings; CLI flag ordering fix - `BuildCommandWithPrompt()` places `--print <prompt>` after all option flags (Issue #111)
+- Recent focus: GetMcpStatus + McpToolAnnotations + agents-in-initialize (Phase 1 #1, #5, #6); agents no longer use `--agents` CLI flag, sent via Initialize control protocol; `McpStatusResponse` with typed connection status; staticcheck SA5011 fix; CLI flag ordering fix (Issue #111)
 - Benchmark organization: Table-driven benchmarks across all core modules (options, parser, shared, control, cli)
 - Makefile integration: All code quality checks (fmt, vet, lint, cyclo) unified under `make check`
 - Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); last ported features: tool_use_result (Go PR #99), errors field on ResultMessage (Go PR #114, Python PR #749), ThinkingConfig union type + WithEffort option (Phase 1 #7), AssistantMessage error from top-level data + RawMessage/RawContentBlock for unknown types (Phase 1 #3, #8), PostToolUseFailure + Notification/SubagentStart/PermissionRequest hook events (Phase 1 #2, #4), GetMcpStatus + McpToolAnnotations + agents-in-initialize (Phase 1 #1, #5, #6)

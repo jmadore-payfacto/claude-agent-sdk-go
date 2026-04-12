@@ -31,6 +31,7 @@ cli/
 - Cross-platform support: Handle Windows vs Unix path differences
 - Version validation: Use semantic versioning comparison
 - Error handling: Return `CLINotFoundError` with installation instructions
+- Agents not in CLI flags: `addOptionsToCommand()` does NOT add `--agents`; agents are sent via the Initialize control protocol request instead
 
 <!-- END AUTO-MANAGED -->
 
