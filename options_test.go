@@ -892,7 +892,7 @@ func (m *mockTransportForOptions) RewindFiles(_ context.Context, _ string) error
 func (m *mockTransportForOptions) GetMcpStatus(_ context.Context) (*McpStatusResponse, error) {
 	return &McpStatusResponse{McpServers: []McpServerStatus{}}, nil
 }
-func (m *mockTransportForOptions) Close() error           { return nil }
+func (m *mockTransportForOptions) Close() error                   { return nil }
 func (m *mockTransportForOptions) GetValidator() *StreamValidator { return &StreamValidator{} }
 
 // TestWithEnvOptions tests environment variable functional options following table-driven pattern

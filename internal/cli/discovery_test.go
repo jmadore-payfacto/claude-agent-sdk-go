@@ -1464,7 +1464,6 @@ func TestAgentsFlagSupport(t *testing.T) {
 	}
 }
 
-
 // TestIncludePartialMessagesFlagSupport tests CLI flag for partial message streaming
 func TestIncludePartialMessagesFlagSupport(t *testing.T) {
 	tests := []struct {
