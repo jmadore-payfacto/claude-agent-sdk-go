@@ -210,10 +210,22 @@ func addModelAndPromptFlags(cmd []string, options *shared.Options) []string {
 	if options.MaxBudgetUSD != nil {
 		cmd = append(cmd, "--max-budget-usd", fmt.Sprintf("%.2f", *options.MaxBudgetUSD))
 	}
-	// NOTE: --max-thinking-tokens not supported by current CLI version
-	// if options.MaxThinkingTokens > 0 {
-	//	cmd = append(cmd, "--max-thinking-tokens", fmt.Sprintf("%d", options.MaxThinkingTokens))
-	// }
+	// Handle ThinkingConfig (takes precedence over MaxThinkingTokens when set)
+	if options.Thinking != nil {
+		switch t := options.Thinking.(type) {
+		case shared.ThinkingConfigAdaptive:
+			cmd = append(cmd, "--thinking", "adaptive")
+		case shared.ThinkingConfigEnabled:
+			cmd = append(cmd, "--max-thinking-tokens", fmt.Sprintf("%d", t.BudgetTokens))
+		case shared.ThinkingConfigDisabled:
+			cmd = append(cmd, "--thinking", "disabled")
+		}
+	} else if options.MaxThinkingTokens > 0 {
+		cmd = append(cmd, "--max-thinking-tokens", fmt.Sprintf("%d", options.MaxThinkingTokens))
+	}
+	if options.Effort != nil {
+		cmd = append(cmd, "--effort", *options.Effort)
+	}
 	// NOTE: User and MaxBufferSize are internal SDK options without CLI flag mappings
 	return cmd
 }

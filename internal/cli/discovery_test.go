@@ -1680,6 +1680,110 @@ func TestCheckCLIVersionSkipEnvVar(t *testing.T) {
 }
 
 // createVersionMockCLI creates a mock CLI script that outputs the given version
+// TestThinkingConfigFlagSupport tests ThinkingConfig CLI flag generation
+func TestThinkingConfigFlagSupport(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  *shared.Options
+		validate func(*testing.T, []string)
+	}{
+		{
+			name: "thinking_adaptive",
+			options: &shared.Options{
+				Thinking: shared.ThinkingConfigAdaptive{},
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--thinking", "adaptive")
+				assertNotContainsArg(t, cmd, "--max-thinking-tokens")
+			},
+		},
+		{
+			name: "thinking_enabled_with_budget",
+			options: &shared.Options{
+				Thinking: shared.ThinkingConfigEnabled{BudgetTokens: 5000},
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--max-thinking-tokens", "5000")
+				assertNotContainsArg(t, cmd, "--thinking")
+			},
+		},
+		{
+			name: "thinking_disabled",
+			options: &shared.Options{
+				Thinking: shared.ThinkingConfigDisabled{},
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--thinking", "disabled")
+				assertNotContainsArg(t, cmd, "--max-thinking-tokens")
+			},
+		},
+		{
+			name: "max_thinking_tokens_backward_compat",
+			options: &shared.Options{
+				MaxThinkingTokens: 8000,
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--max-thinking-tokens", "8000")
+				assertNotContainsArg(t, cmd, "--thinking")
+			},
+		},
+		{
+			name: "thinking_takes_precedence_over_max_thinking_tokens",
+			options: &shared.Options{
+				Thinking:          shared.ThinkingConfigAdaptive{},
+				MaxThinkingTokens: 8000,
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--thinking", "adaptive")
+				assertNotContainsArg(t, cmd, "--max-thinking-tokens")
+			},
+		},
+		{
+			name: "effort_high",
+			options: &shared.Options{
+				Effort: stringPtr("high"),
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--effort", "high")
+			},
+		},
+		{
+			name: "effort_low",
+			options: &shared.Options{
+				Effort: stringPtr("low"),
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertContainsArgs(t, cmd, "--effort", "low")
+			},
+		},
+		{
+			name: "no_thinking_config",
+			options: &shared.Options{
+				MaxThinkingTokens: 0,
+			},
+			validate: func(t *testing.T, cmd []string) {
+				t.Helper()
+				assertNotContainsArg(t, cmd, "--thinking")
+				assertNotContainsArg(t, cmd, "--max-thinking-tokens")
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := BuildCommand("/usr/local/bin/claude", test.options, true)
+			test.validate(t, cmd)
+		})
+	}
+}
+
 func createVersionMockCLI(t *testing.T, version string) string {
 	t.Helper()
 	tempDir := t.TempDir()

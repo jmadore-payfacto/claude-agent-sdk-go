@@ -144,6 +144,31 @@ type AgentDefinition struct {
 	Model AgentModel `json:"model,omitempty"`
 }
 
+// ThinkingConfig configures the model's extended thinking behavior.
+// Use one of: ThinkingConfigAdaptive, ThinkingConfigEnabled, ThinkingConfigDisabled.
+// Go idiom: unexported marker method seals the interface (prevents external implementations).
+type ThinkingConfig interface {
+	thinkingConfig() // unexported - seals the union
+}
+
+// ThinkingConfigAdaptive lets the model decide its thinking budget adaptively.
+type ThinkingConfigAdaptive struct{}
+
+func (ThinkingConfigAdaptive) thinkingConfig() {}
+
+// ThinkingConfigEnabled enables thinking with an explicit token budget.
+type ThinkingConfigEnabled struct {
+	// BudgetTokens is the maximum number of thinking tokens.
+	BudgetTokens int
+}
+
+func (ThinkingConfigEnabled) thinkingConfig() {}
+
+// ThinkingConfigDisabled disables extended thinking explicitly.
+type ThinkingConfigDisabled struct{}
+
+func (ThinkingConfigDisabled) thinkingConfig() {}
+
 // Options configures the Claude Agent SDK behavior.
 type Options struct {
 	// Tool Control
@@ -163,6 +188,15 @@ type Options struct {
 	Model              *string `json:"model,omitempty"`
 	FallbackModel      *string `json:"fallback_model,omitempty"`
 	MaxThinkingTokens  int     `json:"max_thinking_tokens,omitempty"`
+
+	// Thinking configures the model's extended thinking behavior.
+	// When set, takes precedence over MaxThinkingTokens.
+	// Use ThinkingConfigAdaptive, ThinkingConfigEnabled, or ThinkingConfigDisabled.
+	Thinking ThinkingConfig `json:"-"` // Converted to CLI flags, not JSON-serialized
+
+	// Effort sets the model's reasoning effort level.
+	// Valid values: "low", "medium", "high", "max".
+	Effort *string `json:"effort,omitempty"`
 
 	// Budget & Billing
 	MaxBudgetUSD *float64 `json:"max_budget_usd,omitempty"`
@@ -340,11 +374,20 @@ func (c *McpSdkServerConfig) GetType() McpServerType {
 	return McpServerTypeSdk
 }
 
+// McpToolAnnotations describes tool behavior hints for MCP tools.
+// Used in McpToolDefinition for SDK MCP server tool definitions.
+type McpToolAnnotations struct {
+	ReadOnly    *bool `json:"readOnly,omitempty"`
+	Destructive *bool `json:"destructive,omitempty"`
+	OpenWorld   *bool `json:"openWorld,omitempty"`
+}
+
 // McpToolDefinition describes a tool exposed by an MCP server.
 type McpToolDefinition struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	InputSchema map[string]any      `json:"inputSchema"`
+	Annotations *McpToolAnnotations `json:"annotations,omitempty"`
 }
 
 // McpToolResult represents the result of a tool call.

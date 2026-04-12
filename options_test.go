@@ -3599,3 +3599,87 @@ func TestWithSdkMcpServer(t *testing.T) {
 		}
 	})
 }
+
+// TestThinkingConfig_TypeSystem verifies the ThinkingConfig sealed union type system.
+func TestThinkingConfig_TypeSystem(t *testing.T) {
+	// Compile-time interface satisfaction checks
+	var _ ThinkingConfig = ThinkingConfigAdaptive{}
+	var _ ThinkingConfig = ThinkingConfigEnabled{BudgetTokens: 1000}
+	var _ ThinkingConfig = ThinkingConfigDisabled{}
+
+	t.Run("WithThinkingAdaptive_sets_field", func(t *testing.T) {
+		opts := NewOptions(WithThinkingAdaptive())
+		if _, ok := opts.Thinking.(ThinkingConfigAdaptive); !ok {
+			t.Errorf("expected ThinkingConfigAdaptive, got %T", opts.Thinking)
+		}
+	})
+
+	t.Run("WithThinkingBudget_sets_field", func(t *testing.T) {
+		opts := NewOptions(WithThinkingBudget(5000))
+		enabled, ok := opts.Thinking.(ThinkingConfigEnabled)
+		if !ok {
+			t.Fatalf("expected ThinkingConfigEnabled, got %T", opts.Thinking)
+		}
+		if enabled.BudgetTokens != 5000 {
+			t.Errorf("expected BudgetTokens=5000, got %d", enabled.BudgetTokens)
+		}
+	})
+
+	t.Run("WithThinkingDisabled_sets_field", func(t *testing.T) {
+		opts := NewOptions(WithThinkingDisabled())
+		if _, ok := opts.Thinking.(ThinkingConfigDisabled); !ok {
+			t.Errorf("expected ThinkingConfigDisabled, got %T", opts.Thinking)
+		}
+	})
+
+	t.Run("WithThinking_sets_arbitrary_config", func(t *testing.T) {
+		opts := NewOptions(WithThinking(ThinkingConfigEnabled{BudgetTokens: 2000}))
+		enabled, ok := opts.Thinking.(ThinkingConfigEnabled)
+		if !ok {
+			t.Fatalf("expected ThinkingConfigEnabled, got %T", opts.Thinking)
+		}
+		if enabled.BudgetTokens != 2000 {
+			t.Errorf("expected BudgetTokens=2000, got %d", enabled.BudgetTokens)
+		}
+	})
+
+	t.Run("default_thinking_is_nil", func(t *testing.T) {
+		opts := NewOptions()
+		if opts.Thinking != nil {
+			t.Errorf("expected Thinking to be nil by default, got %T", opts.Thinking)
+		}
+	})
+}
+
+// TestWithEffortOption verifies the WithEffort functional option.
+func TestWithEffortOption(t *testing.T) {
+	tests := []struct {
+		name     string
+		effort   string
+		expected string
+	}{
+		{"low", "low", "low"},
+		{"medium", "medium", "medium"},
+		{"high", "high", "high"},
+		{"max", "max", "max"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := NewOptions(WithEffort(tt.effort))
+			if opts.Effort == nil {
+				t.Fatal("expected Effort to be set")
+			}
+			if *opts.Effort != tt.expected {
+				t.Errorf("expected Effort=%q, got %q", tt.expected, *opts.Effort)
+			}
+		})
+	}
+
+	t.Run("default_effort_is_nil", func(t *testing.T) {
+		opts := NewOptions()
+		if opts.Effort != nil {
+			t.Errorf("expected Effort to be nil by default, got %q", *opts.Effort)
+		}
+	})
+}
