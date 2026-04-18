@@ -34,11 +34,16 @@ go fmt ./...                      # Format code
 go vet ./...                      # Static analysis
 golangci-lint run                 # Comprehensive linting
 gocyclo -over 15 .                # Cyclomatic complexity check
+deadcode -test=true \             # Find unreachable internal functions
+  -filter='github.com/severity1/claude-agent-sdk-go/internal/...' \
+  ./examples/... ./internal/...
 
 # Makefile targets (recommended)
-make check                        # Run all checks (fmt, vet, lint, cyclo)
+make check                        # Run all checks (fmt, vet, lint, cyclo, deadcode)
 make cyclo                        # Show complex functions (threshold: 15)
 make cyclo-check                  # Fail if complexity exceeds threshold (CI)
+make deadcode                     # Show unreachable functions
+make deadcode-check               # Fail if unreachable functions exist (CI)
 make fmt-check                    # Verify code formatting
 make security                     # Run security vulnerability checks
 make sdk-test                     # Test SDK as consumer would use it
@@ -89,6 +94,7 @@ make ci                           # Run full CI pipeline locally
 - **Context-first**: All blocking functions accept `context.Context` as first parameter
 - **JSON handling**: Custom `UnmarshalJSON` for union types, discriminate on `"type"` field
 - **Cyclomatic complexity**: Keep functions under complexity 15 (measured by gocyclo); higher acceptable for table-driven tests, examples, orchestration code
+- **Dead code**: Run `make deadcode` (golang.org/x/tools/cmd/deadcode) before commits. Scope is `internal/*` rooted at `./examples/...` (examples are the SDK's only `main` entrypoints); the public API surface is excluded since it's reachable by external consumers, not us. Remove unreachable internal helpers instead of suppressing; if intentionally reserved (rare), add an example or test that exercises the symbol
 - **Naming patterns**: Interfaces describe behavior, implementations use concrete names, options use `WithXxx()`, errors use `XxxError` suffix
 - **No unnecessary exports**: Keep identifiers unexported unless needed by external consumers
 
