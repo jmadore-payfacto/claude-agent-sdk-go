@@ -575,6 +575,7 @@ func TestPostToolUseFailureHookInput_Parsing(t *testing.T) {
 	hookInput, ok := result.(*PostToolUseFailureHookInput)
 	if !ok {
 		t.Fatalf("parseHookInput returned %T, want *PostToolUseFailureHookInput", result)
+		return
 	}
 
 	if hookInput.HookEventName != "PostToolUseFailure" {
@@ -689,6 +690,7 @@ func TestNewHookEvents_Parsing(t *testing.T) {
 				hookInput, ok := result.(*NotificationHookInput)
 				if !ok {
 					t.Fatalf("parseHookInput returned %T, want *NotificationHookInput", result)
+					return
 				}
 				if hookInput.HookEventName != "Notification" {
 					t.Errorf("HookEventName = %q, want %q", hookInput.HookEventName, "Notification")
@@ -720,6 +722,7 @@ func TestNewHookEvents_Parsing(t *testing.T) {
 				hookInput, ok := result.(*SubagentStartHookInput)
 				if !ok {
 					t.Fatalf("parseHookInput returned %T, want *SubagentStartHookInput", result)
+					return
 				}
 				if hookInput.HookEventName != "SubagentStart" {
 					t.Errorf("HookEventName = %q, want %q", hookInput.HookEventName, "SubagentStart")
@@ -751,6 +754,7 @@ func TestNewHookEvents_Parsing(t *testing.T) {
 				hookInput, ok := result.(*PermissionRequestHookInput)
 				if !ok {
 					t.Fatalf("parseHookInput returned %T, want *PermissionRequestHookInput", result)
+					return
 				}
 				if hookInput.HookEventName != "PermissionRequest" {
 					t.Errorf("HookEventName = %q, want %q", hookInput.HookEventName, "PermissionRequest")
@@ -946,6 +950,7 @@ func TestExistingHooks_AgentFields(t *testing.T) {
 		hookInput, ok := result.(*PreToolUseHookInput)
 		if !ok {
 			t.Fatalf("parseHookInput returned %T, want *PreToolUseHookInput", result)
+			return
 		}
 
 		if hookInput.ToolUseID != "tuid-1" {
@@ -979,6 +984,7 @@ func TestExistingHooks_AgentFields(t *testing.T) {
 		hookInput, ok := result.(*PostToolUseHookInput)
 		if !ok {
 			t.Fatalf("parseHookInput returned %T, want *PostToolUseHookInput", result)
+			return
 		}
 
 		if hookInput.ToolUseID != "tuid-2" {
@@ -1010,6 +1016,7 @@ func TestExistingHooks_AgentFields(t *testing.T) {
 		hookInput, ok := result.(*SubagentStopHookInput)
 		if !ok {
 			t.Fatalf("parseHookInput returned %T, want *SubagentStopHookInput", result)
+			return
 		}
 
 		if hookInput.AgentID != "agent-3" {

@@ -1923,6 +1923,7 @@ func TestParseMessage_UnknownType_ReturnsRawMessage(t *testing.T) {
 	rawMsg, ok := msg.(*shared.RawMessage)
 	if !ok {
 		t.Fatalf("expected *shared.RawMessage, got %T", msg)
+		return
 	}
 	if rawMsg.Type() != "future_message_type" {
 		t.Errorf("expected type 'future_message_type', got %q", rawMsg.Type())
@@ -1957,6 +1958,7 @@ func TestParseContentBlock_UnknownType_ReturnsRawContentBlock(t *testing.T) {
 	am, ok := msg.(*shared.AssistantMessage)
 	if !ok {
 		t.Fatalf("expected *shared.AssistantMessage, got %T", msg)
+		return
 	}
 	if len(am.Content) != 1 {
 		t.Fatalf("expected 1 content block, got %d", len(am.Content))
@@ -1964,6 +1966,7 @@ func TestParseContentBlock_UnknownType_ReturnsRawContentBlock(t *testing.T) {
 	rawBlock, ok := am.Content[0].(*shared.RawContentBlock)
 	if !ok {
 		t.Fatalf("expected *shared.RawContentBlock, got %T", am.Content[0])
+		return
 	}
 	if rawBlock.BlockType() != "future_block_type" {
 		t.Errorf("expected block type 'future_block_type', got %q", rawBlock.BlockType())
