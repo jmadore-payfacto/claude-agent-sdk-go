@@ -183,11 +183,17 @@ type McpToolInfo struct {
 }
 
 // McpServerStatus represents the status of a connected MCP server.
+//
+// Config captures the server's wire-format configuration (URL for
+// HTTP/SSE servers, type/name for SDK servers, claudeai-proxy details).
+// It mirrors Python SDK's McpServerStatusConfig union as a raw map; a
+// typed union may be introduced in a later parity phase.
 type McpServerStatus struct {
 	Name       string                    `json:"name"`
 	Status     McpServerConnectionStatus `json:"status"`
 	ServerInfo *McpServerInfo            `json:"serverInfo,omitempty"`
 	Error      *string                   `json:"error,omitempty"`
+	Config     map[string]any            `json:"config,omitempty"`
 	Scope      *string                   `json:"scope,omitempty"`
 	Tools      []McpToolInfo             `json:"tools,omitempty"`
 }

@@ -305,6 +305,11 @@ func (p *Protocol) handleIncomingControlRequest(ctx context.Context, msg map[str
 
 	subtype, _ := request["subtype"].(string)
 	requestID, _ := msg["request_id"].(string)
+	if requestID == "" {
+		// Without a request_id the CLI cannot correlate our reply; refuse
+		// rather than send an un-routable response.
+		return fmt.Errorf("invalid control request: missing request_id")
+	}
 
 	switch subtype {
 	case SubtypeCanUseTool:

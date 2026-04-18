@@ -240,9 +240,15 @@ func (p *Parser) parseAssistantMessage(data map[string]any) (*shared.AssistantMe
 	// The error field is at the top level of the JSON, not inside the nested message object.
 	var errorPtr *shared.AssistantMessageError
 	if errObj, ok := data["error"].(map[string]any); ok {
-		// Error is an object with "type" field like {"type": "rate_limit", ...}
-		if errType, ok := errObj["type"].(string); ok {
+		// Error is an object; prefer the "type" discriminator when present.
+		if errType, ok := errObj["type"].(string); ok && errType != "" {
 			errVal := shared.AssistantMessageError(errType)
+			errorPtr = &errVal
+		} else if raw, err := json.Marshal(errObj); err == nil {
+			// Object without a "type" field: fall back to the raw JSON
+			// representation so callers see that an error was reported
+			// rather than receiving a silent nil.
+			errVal := shared.AssistantMessageError(string(raw))
 			errorPtr = &errVal
 		}
 	} else if errorStr, ok := data["error"].(string); ok {
