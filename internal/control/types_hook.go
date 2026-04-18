@@ -219,6 +219,8 @@ type PreToolUseHookSpecificOutput struct {
 	PermissionDecisionReason *string `json:"permissionDecisionReason,omitempty"`
 	// UpdatedInput contains modified tool input (optional).
 	UpdatedInput map[string]any `json:"updatedInput,omitempty"`
+	// AdditionalContext provides extra context for Claude.
+	AdditionalContext *string `json:"additionalContext,omitempty"`
 }
 
 // PostToolUseHookSpecificOutput contains PostToolUse-specific output fields.
@@ -228,6 +230,8 @@ type PostToolUseHookSpecificOutput struct {
 	HookEventName string `json:"hookEventName"`
 	// AdditionalContext provides extra context for Claude.
 	AdditionalContext *string `json:"additionalContext,omitempty"`
+	// UpdatedMCPToolOutput allows hooks to rewrite MCP tool output sent to Claude.
+	UpdatedMCPToolOutput any `json:"updatedMCPToolOutput,omitempty"`
 }
 
 // UserPromptSubmitHookSpecificOutput contains UserPromptSubmit-specific output fields.
@@ -271,8 +275,10 @@ type SubagentStartHookSpecificOutput struct {
 type PermissionRequestHookSpecificOutput struct {
 	// HookEventName is always "PermissionRequest".
 	HookEventName string `json:"hookEventName"`
-	// AdditionalContext provides extra context for Claude.
-	AdditionalContext *string `json:"additionalContext,omitempty"`
+	// Decision is the permission decision payload sent back to the CLI
+	// (e.g., {"behavior": "allow", "updatedInput": {...}}). Required by Python
+	// SDK; opaque map here for forward compatibility with future decision shapes.
+	Decision map[string]any `json:"decision"`
 }
 
 // =============================================================================
@@ -379,16 +385,6 @@ type HookMatcherConfig struct {
 	Matcher string `json:"matcher"`
 	// HookCallbackIDs are the generated callback IDs for this matcher.
 	HookCallbackIDs []string `json:"hookCallbackIds"`
-	// Timeout is the maximum time in seconds.
-	Timeout *float64 `json:"timeout,omitempty"`
-}
-
-// HookRegistration represents a hook registration for initialization.
-type HookRegistration struct {
-	// CallbackID is the unique identifier for this callback.
-	CallbackID string `json:"callback_id"`
-	// Matcher is the tool name pattern.
-	Matcher string `json:"matcher"`
 	// Timeout is the maximum time in seconds.
 	Timeout *float64 `json:"timeout,omitempty"`
 }

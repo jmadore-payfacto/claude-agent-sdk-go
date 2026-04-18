@@ -556,36 +556,50 @@ func (c *ClientImpl) GetMcpStatus(ctx context.Context) (*McpStatusResponse, erro
 	return transport.GetMcpStatus(ctx)
 }
 
-// clientIterator implements MessageIterator for client message reception
+// clientIterator implements MessageIterator for client message reception.
+// closed is guarded by mu since Next/Close may be called from concurrent goroutines.
 type clientIterator struct {
 	msgChan <-chan Message
 	errChan <-chan error
+	mu      sync.Mutex
 	closed  bool
 }
 
+func (ci *clientIterator) markClosed() {
+	ci.mu.Lock()
+	ci.closed = true
+	ci.mu.Unlock()
+}
+
+func (ci *clientIterator) isClosed() bool {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
+	return ci.closed
+}
+
 func (ci *clientIterator) Next(ctx context.Context) (Message, error) {
-	if ci.closed {
+	if ci.isClosed() {
 		return nil, ErrNoMoreMessages
 	}
 
 	select {
 	case msg, ok := <-ci.msgChan:
 		if !ok {
-			ci.closed = true
+			ci.markClosed()
 			return nil, ErrNoMoreMessages
 		}
 		return msg, nil
 	case err := <-ci.errChan:
-		ci.closed = true
+		ci.markClosed()
 		return nil, err
 	case <-ctx.Done():
-		ci.closed = true
+		ci.markClosed()
 		return nil, ctx.Err()
 	}
 }
 
 func (ci *clientIterator) Close() error {
-	ci.closed = true
+	ci.markClosed()
 	return nil
 }
 

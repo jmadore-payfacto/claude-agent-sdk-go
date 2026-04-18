@@ -200,6 +200,7 @@ const (
 	SubtypeHookCallback      = control.SubtypeHookCallback
 	SubtypeMcpMessage        = control.SubtypeMcpMessage
 	SubtypeGetMcpStatus      = control.SubtypeGetMcpStatus
+	SubtypeRewindFiles       = control.SubtypeRewindFiles
 
 	// Control response subtypes
 	ResponseSubtypeSuccess = control.ResponseSubtypeSuccess

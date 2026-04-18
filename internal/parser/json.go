@@ -110,17 +110,17 @@ func (p *Parser) BufferSize() int {
 	return p.buffer.Len()
 }
 
-// processJSONLine attempts to parse accumulated buffer as JSON using speculative parsing.
-// This is the core of the speculative parsing strategy from the Python SDK.
+// processJSONLine is the thread-safe entry point for speculative parsing.
+// Used by tests; production callers go through ProcessLine.
 func (p *Parser) processJSONLine(jsonLine string) (shared.Message, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
 	return p.processJSONLineUnlocked(jsonLine)
 }
 
-// processJSONLineUnlocked is the unlocked version of processJSONLine.
-// Must be called with mutex already held.
+// processJSONLineUnlocked is the speculative parser core: caller must hold p.mu.
+// Reads accumulated buffer plus the new line, attempts to parse, and returns the
+// message on success.
 func (p *Parser) processJSONLineUnlocked(jsonLine string) (shared.Message, error) {
 	p.buffer.WriteString(jsonLine)
 

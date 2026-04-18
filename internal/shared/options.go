@@ -430,6 +430,17 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	// Validate AgentDefinition.Model values: empty (== inherit) or one of the
+	// known constants. Catches typos before they reach the CLI.
+	for name, agent := range o.Agents {
+		switch agent.Model {
+		case "", AgentModelSonnet, AgentModelOpus, AgentModelHaiku, AgentModelInherit:
+			// valid
+		default:
+			return fmt.Errorf("agent %q has invalid Model %q (must be sonnet, opus, haiku, inherit, or empty)", name, agent.Model)
+		}
+	}
+
 	return nil
 }
 

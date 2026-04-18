@@ -4,8 +4,18 @@ package control
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/severity1/claude-agent-sdk-go/internal/shared"
+)
+
+// Permission behavior wire-format constants (sent to the CLI as the
+// discriminator for PermissionResult variants). Always sourced from these
+// constants — the Behavior field on the structs is informational and ignored
+// during marshaling.
+const (
+	permissionBehaviorAllow = "allow"
+	permissionBehaviorDeny  = "deny"
 )
 
 // McpToolAnnotations describes tool behavior hints.
@@ -13,11 +23,12 @@ import (
 type McpToolAnnotations = shared.McpToolAnnotations
 
 // Message type constants for control protocol discrimination.
+// Aliased from shared so the wire-format string lives in one place.
 const (
 	// MessageTypeControlRequest is sent TO the CLI to request an action.
-	MessageTypeControlRequest = "control_request"
+	MessageTypeControlRequest = shared.MessageTypeControlRequest
 	// MessageTypeControlResponse is received FROM the CLI as a response.
-	MessageTypeControlResponse = "control_response"
+	MessageTypeControlResponse = shared.MessageTypeControlResponse
 )
 
 // Request subtype constants matching Python SDK for 100% parity.
@@ -257,10 +268,12 @@ type PermissionResult interface {
 }
 
 // PermissionResultAllow permits tool execution with optional modifications.
-// Behavior field is always "allow" - this is the discriminator for CLI.
+// Behavior is informational and always serialized as "allow" regardless of
+// field value (see MarshalJSON), so callers cannot accidentally invert the
+// discriminator by mutating the field.
 type PermissionResultAllow struct {
 	// Behavior is always "allow".
-	Behavior string `json:"behavior"`
+	Behavior string `json:"-"`
 	// UpdatedInput contains the modified tool input (optional).
 	UpdatedInput map[string]any `json:"updatedInput,omitempty"`
 	// UpdatedPermissions contains dynamic permission updates (optional).
@@ -270,17 +283,27 @@ type PermissionResultAllow struct {
 // permissionResult implements PermissionResult marker interface.
 func (PermissionResultAllow) permissionResult() {}
 
+// MarshalJSON forces behavior:"allow" on the wire regardless of struct state.
+func (a PermissionResultAllow) MarshalJSON() ([]byte, error) {
+	type alias PermissionResultAllow
+	return json.Marshal(struct {
+		Behavior string `json:"behavior"`
+		alias
+	}{Behavior: permissionBehaviorAllow, alias: alias(a)})
+}
+
 // NewPermissionResultAllow creates an Allow result with proper defaults.
 // Go idiom: constructor functions for types with required fields.
 func NewPermissionResultAllow() PermissionResultAllow {
-	return PermissionResultAllow{Behavior: "allow"}
+	return PermissionResultAllow{Behavior: permissionBehaviorAllow}
 }
 
 // PermissionResultDeny prevents tool execution.
-// Behavior field is always "deny" - this is the discriminator for CLI.
+// Behavior is informational and always serialized as "deny" regardless of
+// field value (see MarshalJSON).
 type PermissionResultDeny struct {
 	// Behavior is always "deny".
-	Behavior string `json:"behavior"`
+	Behavior string `json:"-"`
 	// Message is the reason for denial.
 	Message string `json:"message,omitempty"`
 	// Interrupt indicates whether to interrupt the session.
@@ -290,9 +313,18 @@ type PermissionResultDeny struct {
 // permissionResult implements PermissionResult marker interface.
 func (PermissionResultDeny) permissionResult() {}
 
+// MarshalJSON forces behavior:"deny" on the wire regardless of struct state.
+func (d PermissionResultDeny) MarshalJSON() ([]byte, error) {
+	type alias PermissionResultDeny
+	return json.Marshal(struct {
+		Behavior string `json:"behavior"`
+		alias
+	}{Behavior: permissionBehaviorDeny, alias: alias(d)})
+}
+
 // NewPermissionResultDeny creates a Deny result with proper defaults.
 func NewPermissionResultDeny(message string) PermissionResultDeny {
-	return PermissionResultDeny{Behavior: "deny", Message: message}
+	return PermissionResultDeny{Behavior: permissionBehaviorDeny, Message: message}
 }
 
 // CanUseToolCallback is invoked when CLI requests permission to use a tool.

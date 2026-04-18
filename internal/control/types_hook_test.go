@@ -34,18 +34,22 @@ func TestHookEventConstants(t *testing.T) {
 }
 
 func TestHookEventCount(t *testing.T) {
-	// Ensure we have exactly 6 hook events as per Python SDK parity
+	// Ensure all 10 hook events are defined per Python SDK parity (Phase 1).
 	events := []HookEvent{
 		HookEventPreToolUse,
 		HookEventPostToolUse,
+		HookEventPostToolUseFailure,
 		HookEventUserPromptSubmit,
 		HookEventStop,
 		HookEventSubagentStop,
 		HookEventPreCompact,
+		HookEventNotification,
+		HookEventSubagentStart,
+		HookEventPermissionRequest,
 	}
 
-	if len(events) != 6 {
-		t.Errorf("Expected 6 hook events for Python SDK parity, got %d", len(events))
+	if len(events) != 10 {
+		t.Errorf("Expected 10 hook events for Python SDK parity, got %d", len(events))
 	}
 }
 
@@ -817,10 +821,14 @@ func TestSubagentStartHookSpecificOutput_Serialization(t *testing.T) {
 }
 
 func TestPermissionRequestHookSpecificOutput_Serialization(t *testing.T) {
-	ctx := "Permission evaluated"
 	output := PermissionRequestHookSpecificOutput{
-		HookEventName:     "PermissionRequest",
-		AdditionalContext: &ctx,
+		HookEventName: "PermissionRequest",
+		Decision: map[string]any{
+			"behavior": "allow",
+			"updatedInput": map[string]any{
+				"command": "ls -la",
+			},
+		},
 	}
 
 	data, err := json.Marshal(output)
@@ -834,7 +842,84 @@ func TestPermissionRequestHookSpecificOutput_Serialization(t *testing.T) {
 	}
 
 	assertHookJSONField(t, result, "hookEventName", "PermissionRequest")
-	assertHookJSONField(t, result, "additionalContext", "Permission evaluated")
+
+	decision, ok := result["decision"].(map[string]any)
+	if !ok {
+		t.Fatal("expected decision field of type map[string]any")
+		return
+	}
+	if decision["behavior"] != "allow" {
+		t.Errorf("decision.behavior = %v, want allow", decision["behavior"])
+	}
+}
+
+func TestPermissionRequestHookSpecificOutput_DecisionRequired(t *testing.T) {
+	// Decision is required (no omitempty), so even with nil it must serialize.
+	output := PermissionRequestHookSpecificOutput{
+		HookEventName: "PermissionRequest",
+	}
+
+	data, err := json.Marshal(output)
+	if err != nil {
+		t.Fatalf("Failed to marshal PermissionRequestHookSpecificOutput: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Failed to unmarshal to map: %v", err)
+	}
+
+	if _, exists := result["decision"]; !exists {
+		t.Error("decision field must always be present (required by Python SDK)")
+	}
+}
+
+func TestPreToolUseHookSpecificOutput_AdditionalContext(t *testing.T) {
+	ctx := "extra context for Claude"
+	output := PreToolUseHookSpecificOutput{
+		HookEventName:     "PreToolUse",
+		AdditionalContext: &ctx,
+	}
+
+	data, err := json.Marshal(output)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	assertHookJSONField(t, result, "additionalContext", ctx)
+}
+
+func TestPostToolUseHookSpecificOutput_UpdatedMCPToolOutput(t *testing.T) {
+	output := PostToolUseHookSpecificOutput{
+		HookEventName: "PostToolUse",
+		UpdatedMCPToolOutput: map[string]any{
+			"replaced": "by hook",
+		},
+	}
+
+	data, err := json.Marshal(output)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	updated, ok := result["updatedMCPToolOutput"].(map[string]any)
+	if !ok {
+		t.Fatal("expected updatedMCPToolOutput as map")
+		return
+	}
+	if updated["replaced"] != "by hook" {
+		t.Errorf("updatedMCPToolOutput.replaced = %v, want 'by hook'", updated["replaced"])
+	}
 }
 
 // =============================================================================

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -171,16 +172,20 @@ func (p *Protocol) readLoop() {
 				return
 			}
 
-			// Parse the incoming message
+			// Parse the incoming message. Malformed JSON from the CLI is rare
+			// and indicates a real bug; surface it so users can debug instead of
+			// timing out silently.
 			var msg map[string]any
 			if err := json.Unmarshal(data, &msg); err != nil {
-				// Log parse error but continue
+				log.Printf("claude-sdk: control protocol: failed to parse incoming message (%d bytes): %v", len(data), err)
 				continue
 			}
 
-			// Route the message
+			// Route the message. A routing failure means a pending request will
+			// never get its response; surface it so the eventual timeout has
+			// context.
 			if err := p.HandleIncomingMessage(p.ctx, msg); err != nil {
-				// Log routing error but continue
+				log.Printf("claude-sdk: control protocol: failed to route incoming message: %v", err)
 				continue
 			}
 		}
@@ -309,8 +314,11 @@ func (p *Protocol) handleIncomingControlRequest(ctx context.Context, msg map[str
 	case SubtypeMcpMessage:
 		return p.handleMcpMessageRequest(ctx, requestID, request)
 	default:
-		// Unknown subtype - ignore for forward compatibility
-		return nil
+		// Unknown subtype: send an error response so the CLI doesn't wait
+		// forever for a reply to this requestID. This preserves forward
+		// compatibility (we don't crash) while still completing the protocol
+		// roundtrip with a meaningful failure.
+		return p.sendErrorResponse(ctx, requestID, fmt.Sprintf("unsupported control request subtype: %q", subtype))
 	}
 }
 

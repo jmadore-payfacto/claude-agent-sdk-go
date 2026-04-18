@@ -61,7 +61,16 @@ func (t *Transport) generateMcpConfigFile() (string, error) {
 		return "", fmt.Errorf("failed to sync MCP config file: %w", err)
 	}
 
-	// Store for cleanup later
+	// Close the handle now that the CLI will read the file by path. Keeping the
+	// handle open would leak an FD for the lifetime of the subprocess and on
+	// some platforms (notably Windows) prevent the CLI from opening the file.
+	// We retain tmpFile only so the cleanup path can call Name() and Remove().
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("failed to close MCP config file: %w", err)
+	}
+
+	// Store for cleanup later (Name() remains valid on a closed handle)
 	t.mcpConfigFile = tmpFile
 
 	return tmpFile.Name(), nil
@@ -190,13 +199,14 @@ func (t *Transport) buildProtocolOptions() []control.ProtocolOption {
 					return nil, err
 				}
 
-				// Convert result back to strongly-typed PermissionResult
+				// Convert result back to strongly-typed PermissionResult.
+				// A type mismatch here means the user's callback returned a
+				// value that isn't a PermissionResult — surface that loudly
+				// instead of silently denying, so the bug isn't masked.
 				if pr, ok := result.(control.PermissionResult); ok {
 					return pr, nil
 				}
-
-				// Fallback: deny if result type is unexpected
-				return control.NewPermissionResultDeny("invalid permission result type"), nil
+				return nil, fmt.Errorf("permission callback returned %T; expected control.PermissionResult (use NewPermissionResultAllow/Deny)", result)
 			}))
 	}
 

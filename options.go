@@ -503,22 +503,6 @@ func WithAgent(name string, agent AgentDefinition) Option {
 	}
 }
 
-const customTransportMarker = "custom_transport"
-
-// WithTransport sets a custom transport for testing.
-// Since Transport is not part of Options struct, this is handled in client creation.
-func WithTransport(_ Transport) Option {
-	return func(o *Options) {
-		// This will be handled in client implementation
-		// For now, we'll use a special marker in ExtraArgs
-		if o.ExtraArgs == nil {
-			o.ExtraArgs = make(map[string]*string)
-		}
-		marker := customTransportMarker
-		o.ExtraArgs["__transport_marker__"] = &marker
-	}
-}
-
 // NewOptions creates Options with default values using functional options pattern.
 func NewOptions(opts ...Option) *Options {
 	// Create options with defaults from shared package

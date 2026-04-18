@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/severity1/claude-agent-sdk-go/internal/shared"
 )
 
 // Test constants for model names used across dynamic control tests.
@@ -1137,6 +1139,206 @@ func testInitializeNoAgentsWhenEmpty(t *testing.T) {
 	// agents field should be omitted when nil
 	if _, exists := parsed["agents"]; exists {
 		t.Error("agents field should be omitted when nil")
+	}
+}
+
+// TestInitializeWithOptions_AgentsFlowEndToEnd exercises the full WithOptions
+// path: NewProtocol(WithOptions(opts)) -> Initialize() -> SendControlRequest
+// must include the agents map built from opts.Agents in the wire payload.
+func TestInitializeWithOptions_AgentsFlowEndToEnd(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	opts := shared.NewOptions()
+	opts.Agents = map[string]shared.AgentDefinition{
+		"researcher": {
+			Description: "Researches topics",
+			Prompt:      "Be thorough.",
+			Tools:       []string{"Read", "WebSearch"},
+			Model:       shared.AgentModelSonnet,
+		},
+	}
+
+	protocol := NewProtocol(transport, WithOptions(opts))
+	if err := protocol.Start(ctx); err != nil {
+		t.Fatalf("start: %v", err)
+		return
+	}
+	defer func() { _ = protocol.Close() }()
+
+	// Auto-respond to the initialize request so Initialize() doesn't block.
+	go func() {
+		// Give the writer a moment to land the request bytes.
+		for i := 0; i < 50; i++ {
+			transport.mu.Lock()
+			n := len(transport.writtenData)
+			transport.mu.Unlock()
+			if n > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		if err := json.Unmarshal(transport.writtenData[0], &req); err != nil {
+			transport.mu.Unlock()
+			return
+		}
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{
+			"supported_commands": []any{"interrupt"},
+		})
+	}()
+
+	if _, err := protocol.Initialize(ctx); err != nil {
+		t.Fatalf("initialize: %v", err)
+		return
+	}
+
+	// Inspect the captured initialize request payload.
+	transport.mu.Lock()
+	if len(transport.writtenData) == 0 {
+		transport.mu.Unlock()
+		t.Fatal("expected at least one written request")
+		return
+	}
+	first := transport.writtenData[0]
+	transport.mu.Unlock()
+
+	var envelope map[string]any
+	if err := json.Unmarshal(first, &envelope); err != nil {
+		t.Fatalf("unmarshal envelope: %v", err)
+		return
+	}
+	reqInner, ok := envelope["request"].(map[string]any)
+	if !ok {
+		t.Fatal("expected request inner object")
+		return
+	}
+	agents, ok := reqInner["agents"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected agents map in initialize request, got %v", reqInner)
+		return
+	}
+	researcher, ok := agents["researcher"].(map[string]any)
+	if !ok {
+		t.Fatal("expected researcher agent in agents map")
+		return
+	}
+	if researcher["description"] != "Researches topics" {
+		t.Errorf("description = %v, want 'Researches topics'", researcher["description"])
+	}
+	if researcher["model"] != string(shared.AgentModelSonnet) {
+		t.Errorf("model = %v, want %v", researcher["model"], shared.AgentModelSonnet)
+	}
+}
+
+// TestGetMcpStatus_ErrorResponse verifies error subtypes propagate from CLI.
+func TestGetMcpStatus_ErrorResponse(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+	if err := protocol.Start(ctx); err != nil {
+		t.Fatalf("start: %v", err)
+		return
+	}
+	defer func() { _ = protocol.Close() }()
+
+	go func() {
+		for i := 0; i < 50; i++ {
+			transport.mu.Lock()
+			n := len(transport.writtenData)
+			transport.mu.Unlock()
+			if n > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		_ = json.Unmarshal(transport.writtenData[0], &req)
+		transport.mu.Unlock()
+		transport.injectErrorResponse(req.RequestID, "CLI failed to enumerate MCP servers")
+	}()
+
+	_, err := protocol.GetMcpStatus(ctx)
+	if err == nil {
+		t.Fatal("expected error from GetMcpStatus when CLI returns error subtype")
+		return
+	}
+	if !strings.Contains(err.Error(), "CLI failed to enumerate MCP servers") {
+		t.Errorf("error %q should contain CLI error message", err)
+	}
+}
+
+// TestGetMcpStatus_AllConnectionStatuses covers needs-auth, pending, disabled
+// in addition to the connected/failed already covered in testGetMcpStatusReturnsServers.
+func TestGetMcpStatus_AllConnectionStatuses(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+	if err := protocol.Start(ctx); err != nil {
+		t.Fatalf("start: %v", err)
+		return
+	}
+	defer func() { _ = protocol.Close() }()
+
+	go func() {
+		for i := 0; i < 50; i++ {
+			transport.mu.Lock()
+			n := len(transport.writtenData)
+			transport.mu.Unlock()
+			if n > 0 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		_ = json.Unmarshal(transport.writtenData[0], &req)
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{
+			"mcpServers": []any{
+				map[string]any{"name": "auth-server", "status": "needs-auth"},
+				map[string]any{"name": "starting-server", "status": "pending"},
+				map[string]any{"name": "off-server", "status": "disabled"},
+			},
+		})
+	}()
+
+	result, err := protocol.GetMcpStatus(ctx)
+	assertControlNoError(t, err)
+	if result == nil || len(result.McpServers) != 3 {
+		t.Fatalf("expected 3 servers, got %v", result)
+		return
+	}
+
+	wantStatuses := []McpServerConnectionStatus{
+		McpServerConnectionStatus("needs-auth"),
+		McpServerConnectionStatus("pending"),
+		McpServerConnectionStatus("disabled"),
+	}
+	for i, want := range wantStatuses {
+		if result.McpServers[i].Status != want {
+			t.Errorf("server[%d].Status = %q, want %q", i, result.McpServers[i].Status, want)
+		}
 	}
 }
 

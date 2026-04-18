@@ -584,84 +584,6 @@ func TestWithCLIPath(t *testing.T) {
 	})
 }
 
-// TestWithTransport tests the WithTransport option function
-func TestWithTransport(t *testing.T) {
-	// Create a mock transport for testing
-	mockTransport := &mockTransportForOptions{}
-
-	t.Run("transport_marker_in_extra_args", func(t *testing.T) {
-		options := NewOptions(WithTransport(mockTransport))
-
-		if options.ExtraArgs == nil {
-			t.Fatal("Expected ExtraArgs to be initialized")
-		}
-
-		marker, exists := options.ExtraArgs["__transport_marker__"]
-		if !exists {
-			t.Error("Expected transport marker to be set in ExtraArgs")
-		}
-
-		if marker == nil || *marker != customTransportMarker {
-			t.Errorf("Expected transport marker value 'custom_transport', got %v", marker)
-		}
-	})
-
-	t.Run("transport_with_existing_extra_args", func(t *testing.T) {
-		options := NewOptions(
-			WithExtraArgs(map[string]*string{"existing": stringPtr("value")}),
-			WithTransport(mockTransport),
-		)
-
-		if options.ExtraArgs == nil {
-			t.Fatal("Expected ExtraArgs to be preserved")
-		}
-
-		// Check existing arg is preserved
-		existing, exists := options.ExtraArgs["existing"]
-		if !exists || existing == nil || *existing != "value" {
-			t.Error("Expected existing ExtraArgs to be preserved")
-		}
-
-		// Check transport marker is added
-		marker, exists := options.ExtraArgs["__transport_marker__"]
-		if !exists || marker == nil || *marker != customTransportMarker {
-			t.Error("Expected transport marker to be added to existing ExtraArgs")
-		}
-	})
-
-	t.Run("transport_with_nil_extra_args", func(t *testing.T) {
-		// Create options with nil ExtraArgs
-		options := &Options{}
-
-		// Apply WithTransport option
-		WithTransport(mockTransport)(options)
-
-		if options.ExtraArgs == nil {
-			t.Error("Expected ExtraArgs to be initialized")
-		}
-
-		marker, exists := options.ExtraArgs["__transport_marker__"]
-		if !exists || marker == nil || *marker != customTransportMarker {
-			t.Error("Expected transport marker to be set when ExtraArgs was nil")
-		}
-	})
-
-	t.Run("multiple_transport_calls", func(t *testing.T) {
-		anotherMockTransport := &mockTransportForOptions{}
-
-		options := NewOptions(
-			WithTransport(mockTransport),
-			WithTransport(anotherMockTransport), // Should overwrite
-		)
-
-		// Should only have one transport marker (last one wins)
-		marker, exists := options.ExtraArgs["__transport_marker__"]
-		if !exists || marker == nil || *marker != customTransportMarker {
-			t.Error("Expected last transport to set the marker")
-		}
-	})
-}
-
 // Helper Functions - following client_test.go patterns
 
 // assertOptionsMaxThinkingTokens verifies MaxThinkingTokens value
@@ -873,27 +795,6 @@ func assertOptionsValidationError(t *testing.T, options *Options, shouldError bo
 func stringPtr(s string) *string {
 	return &s
 }
-
-// mockTransportForOptions is a minimal mock transport for testing options
-type mockTransportForOptions struct{}
-
-func (m *mockTransportForOptions) Connect(_ context.Context) error { return nil }
-func (m *mockTransportForOptions) SendMessage(_ context.Context, _ StreamMessage) error {
-	return nil
-}
-
-func (m *mockTransportForOptions) ReceiveMessages(_ context.Context) (<-chan Message, <-chan error) {
-	return nil, nil
-}
-func (m *mockTransportForOptions) Interrupt(_ context.Context) error                   { return nil }
-func (m *mockTransportForOptions) SetModel(_ context.Context, _ *string) error         { return nil }
-func (m *mockTransportForOptions) SetPermissionMode(_ context.Context, _ string) error { return nil }
-func (m *mockTransportForOptions) RewindFiles(_ context.Context, _ string) error       { return nil }
-func (m *mockTransportForOptions) GetMcpStatus(_ context.Context) (*McpStatusResponse, error) {
-	return &McpStatusResponse{McpServers: []McpServerStatus{}}, nil
-}
-func (m *mockTransportForOptions) Close() error                   { return nil }
-func (m *mockTransportForOptions) GetValidator() *StreamValidator { return &StreamValidator{} }
 
 // TestWithEnvOptions tests environment variable functional options following table-driven pattern
 func TestWithEnvOptions(t *testing.T) {
