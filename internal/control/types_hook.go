@@ -344,13 +344,35 @@ type HookContext struct {
 // Python SDK uses async callback; Go uses synchronous with context for cancellation.
 //
 // Parameters:
+//
 //   - ctx: Context for cancellation and timeouts
-//   - input: Hook input (PreToolUseHookInput, PostToolUseHookInput, etc.)
+//
+//   - input: Hook input - typed as any because the concrete input struct
+//     depends on which event fired. The callback must type-switch on the
+//     event it was registered for:
+//
+//     HookEventPreToolUse           -> *PreToolUseHookInput
+//     HookEventPostToolUse          -> *PostToolUseHookInput
+//     HookEventPostToolUseFailure   -> *PostToolUseFailureHookInput
+//     HookEventUserPromptSubmit     -> *UserPromptSubmitHookInput
+//     HookEventStop                 -> *StopHookInput
+//     HookEventSubagentStop         -> *SubagentStopHookInput
+//     HookEventPreCompact           -> *PreCompactHookInput
+//     HookEventNotification         -> *NotificationHookInput
+//     HookEventSubagentStart        -> *SubagentStartHookInput
+//     HookEventPermissionRequest    -> *PermissionRequestHookInput
+//
+//     Unknown event types pass the raw input map[string]any (forward compat).
+//
 //   - toolUseID: Optional tool use identifier (only for tool-related hooks)
+//
 //   - hookCtx: Hook context with signal support
 //
 // Returns:
-//   - HookJSONOutput: The hook's response
+//   - HookJSONOutput: The hook's response. When HookSpecificOutput is set,
+//     it must be the event-specific output type matching the event
+//     (PreToolUseHookSpecificOutput, PostToolUseHookSpecificOutput, etc.);
+//     there is no compile-time guard against mismatched types.
 //   - error: Non-nil if the callback encounters an error
 type HookCallback func(
 	ctx context.Context,

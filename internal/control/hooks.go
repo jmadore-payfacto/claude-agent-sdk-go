@@ -171,38 +171,15 @@ func (p *Protocol) parseHookInput(event HookEvent, inputData map[string]any) any
 }
 
 // sendHookResponse sends a hook callback response back to CLI.
+// Delegates serialization to HookJSONOutput's JSON tags (omitempty) so a
+// new field on the struct flows to the wire without needing an update here.
 func (p *Protocol) sendHookResponse(ctx context.Context, requestID string, result HookJSONOutput) error {
-	// Build response data from HookJSONOutput
-	responseData := make(map[string]any)
-
-	if result.Continue != nil {
-		responseData["continue"] = *result.Continue
-	}
-	if result.SuppressOutput != nil {
-		responseData["suppressOutput"] = *result.SuppressOutput
-	}
-	if result.StopReason != nil {
-		responseData["stopReason"] = *result.StopReason
-	}
-	if result.Decision != nil {
-		responseData["decision"] = *result.Decision
-	}
-	if result.SystemMessage != nil {
-		responseData["systemMessage"] = *result.SystemMessage
-	}
-	if result.Reason != nil {
-		responseData["reason"] = *result.Reason
-	}
-	if result.HookSpecificOutput != nil {
-		responseData["hookSpecificOutput"] = result.HookSpecificOutput
-	}
-
 	response := SDKControlResponse{
 		Type: MessageTypeControlResponse,
 		Response: Response{
 			Subtype:   ResponseSubtypeSuccess,
 			RequestID: requestID,
-			Response:  responseData,
+			Response:  result,
 		},
 	}
 
@@ -224,8 +201,10 @@ func (p *Protocol) buildHooksConfig() map[string][]HookMatcherConfig {
 
 	config := make(map[string][]HookMatcherConfig)
 
-	// Initialize callback map if needed
+	// Initialize callback map if needed. defer the unlock so future edits
+	// that add early returns inside this function cannot leak the lock.
 	p.hookCallbacksMu.Lock()
+	defer p.hookCallbacksMu.Unlock()
 	if p.hookCallbacks == nil {
 		p.hookCallbacks = make(map[string]HookCallback)
 	}
@@ -257,7 +236,6 @@ func (p *Protocol) buildHooksConfig() map[string][]HookMatcherConfig {
 			config[eventName] = matcherConfigs
 		}
 	}
-	p.hookCallbacksMu.Unlock()
 
 	return config
 }

@@ -53,6 +53,9 @@ control/
 - ToolPermissionContext ToolUseID/AgentID: `handleCanUseToolRequest` parses `tool_use_id` and `agent_id` from the request map (Python PR #754); stored as `*string` on `ToolPermissionContext`; `ToolUseID` lets callbacks disambiguate concurrent tool calls; `AgentID` identifies the originating subagent; both nil when the CLI does not send them (older CLI versions)
 - PermissionResultAllow/Deny MarshalJSON: hard-codes `"behavior"` discriminator on wire regardless of struct field value - caller cannot accidentally invert the discriminator
 - UpdatedMCPToolOutput foot-gun: `PostToolUseHookSpecificOutput.UpdatedMCPToolOutput` is typed `any` with `omitempty`; `omitempty` only elides nil for `any` - zero-value scalars (`""`, `0`, `false`) are still serialized; leave field nil to omit entirely
+- sendHookResponse struct-tag serialization: passes `HookJSONOutput` directly to `json.Marshal`; relies on struct tags and `omitempty` so new fields on the struct automatically flow to the wire without requiring manual map assembly updates
+- buildHooksConfig deferred unlock: uses `defer p.hookCallbacksMu.Unlock()` immediately after acquiring the lock so any future early return cannot leak the mutex
+- HookCallback godoc: types_hook.go documents a complete event-to-input-type mapping table; HookSpecificOutput type in the returned `HookJSONOutput` must match the event type
 
 <!-- END AUTO-MANAGED -->
 

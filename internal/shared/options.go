@@ -317,8 +317,14 @@ type Options struct {
 	// If nil, all tool requests are denied (secure default).
 	// Callback panics are recovered to prevent crashing the SDK.
 	// Matches Python SDK's can_use_tool callback behavior.
-	// Note: The actual types are defined in internal/control to avoid import cycles.
-	// Use the claudecode package's WithCanUseTool option for type-safe configuration.
+	//
+	// WARNING: This field is typed as any to avoid an import cycle between
+	// shared and internal/control. Do not set it directly - use the
+	// claudecode package's WithCanUseTool option, which wraps the callback
+	// with the required any<->control.ToolPermissionContext conversion. A
+	// direct assignment that returns a value not assertable to
+	// control.PermissionResult is treated as a bug and surfaced loudly
+	// rather than silently denying.
 	CanUseTool func(
 		ctx context.Context,
 		toolName string,
@@ -329,7 +335,12 @@ type Options struct {
 	// Hooks contains lifecycle event hook registrations.
 	// The actual type is map[control.HookEvent][]control.HookMatcher.
 	// Stored as any to avoid import cycles with internal/control package.
-	// Use the claudecode package's WithHook option for type-safe configuration.
+	//
+	// WARNING: Do not set this field directly - use the claudecode package's
+	// WithHook / WithHooks options. A direct assignment whose underlying
+	// type does not match map[control.HookEvent][]control.HookMatcher is
+	// silently ignored at transport wire-up time, which will make hook
+	// callbacks appear to be registered but never fire.
 	Hooks any `json:"-"` // Not serialized
 }
 
