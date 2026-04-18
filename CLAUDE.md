@@ -39,16 +39,17 @@ deadcode -test=true \             # Find unreachable internal functions
   ./examples/... ./internal/...
 
 # Makefile targets (recommended)
-make check                        # Run all checks (fmt, vet, lint, cyclo, deadcode)
+make check                        # Run all checks (fmt, vet, lint, cyclo, deadcode, fuzz-test)
 make cyclo                        # Show complex functions (threshold: 15)
 make cyclo-check                  # Fail if complexity exceeds threshold (CI)
-make deadcode                     # Show unreachable functions
-make deadcode-check               # Fail if unreachable functions exist (CI)
+make deadcode                     # Show unreachable internal functions
+make deadcode-check               # Fail if unreachable internal functions exist (CI)
+make fuzz-test                    # Verify fuzz corpus (fast, CI mode)
 make fmt-check                    # Verify code formatting
 make security                     # Run security vulnerability checks
 make sdk-test                     # Test SDK as consumer would use it
 make release-check                # Pre-release validation
-make ci                           # Run full CI pipeline locally
+make ci                           # Run full CI pipeline locally (includes fuzz + deadcode)
 ```
 
 <!-- END AUTO-MANAGED -->
@@ -130,7 +131,7 @@ make ci                           # Run full CI pipeline locally
 - PR-based workflow with CI checks
 - Recent focus: Phase 1 parity complete via Go PR #117 - all 8 items ported (GetMcpStatus, PostToolUseFailure hook, AssistantMessage error fix, hook events, McpToolAnnotations, agents-in-initialize, ThinkingConfig, RawMessage/RawContentBlock); next up: Phase 2 items #9-#20 (stop_reason on ResultMessage, MCP reconnect/toggle, typed task messages, list_sessions, per-turn usage on AssistantMessage, skills/memory/mcpServers on AgentDefinition, CLAUDE_CODE_ENTRYPOINT set-if-absent, etc.)
 - Benchmark organization: Table-driven benchmarks across all core modules (options, parser, shared, control, cli)
-- Makefile integration: All code quality checks (fmt, vet, lint, cyclo) unified under `make check`
+- Makefile integration: All code quality checks (fmt, vet, lint, cyclo, deadcode, fuzz-test) unified under `make check`; `make ci` runs full pipeline including fuzz corpus verification and deadcode enforcement
 - Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); Phase 1 complete via Go PR #117 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598); last ported features: Phase 1 items #1-#8 (Go PR #117), errors field on ResultMessage (Go PR #114, Python PR #749)
 
 <!-- END AUTO-MANAGED -->
