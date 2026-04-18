@@ -1008,6 +1008,65 @@ func TestClientIteratorClose(t *testing.T) {
 	}
 }
 
+// TestClientGetMcpStatus covers the public Client.GetMcpStatus() API end-to-end:
+// delegation to transport when connected, error when disconnected, and
+// propagation of the transport error.
+func TestClientGetMcpStatus(t *testing.T) {
+	ctx, cancel := setupClientTestContext(t, 5*time.Second)
+	defer cancel()
+
+	t.Run("returns_response_when_connected", func(t *testing.T) {
+		expected := &McpStatusResponse{
+			McpServers: []McpServerStatus{
+				{Name: "svr1", Status: McpServerConnectionStatus("connected")},
+			},
+		}
+		transport := newClientMockTransportWithOptions(WithClientMcpStatus(expected))
+		client := setupClientForTest(t, transport)
+		connectClientSafely(ctx, t, client)
+		defer disconnectClientSafely(t, client)
+
+		got, err := client.GetMcpStatus(ctx)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got == nil || len(got.McpServers) != 1 {
+			t.Fatalf("expected 1 server, got %+v", got)
+			return
+		}
+		if got.McpServers[0].Name != "svr1" {
+			t.Errorf("expected svr1, got %s", got.McpServers[0].Name)
+		}
+	})
+
+	t.Run("errors_when_not_connected", func(t *testing.T) {
+		client := NewClient()
+		_, err := client.GetMcpStatus(ctx)
+		if err == nil {
+			t.Fatal("expected error when not connected, got nil")
+		}
+		if !strings.Contains(err.Error(), "not connected") {
+			t.Errorf("expected 'not connected' error, got: %v", err)
+		}
+	})
+
+	t.Run("propagates_transport_error", func(t *testing.T) {
+		transportErr := errors.New("cli busy")
+		transport := newClientMockTransportWithOptions(WithClientMcpStatusError(transportErr))
+		client := setupClientForTest(t, transport)
+		connectClientSafely(ctx, t, client)
+		defer disconnectClientSafely(t, client)
+
+		_, err := client.GetMcpStatus(ctx)
+		if err == nil {
+			t.Fatal("expected transport error, got nil")
+		}
+		if !errors.Is(err, transportErr) && !strings.Contains(err.Error(), "cli busy") {
+			t.Errorf("expected transport error to propagate, got: %v", err)
+		}
+	})
+}
+
 // Mock Transport Implementation - simplified following options_test.go patterns
 type clientMockTransport struct {
 	mu           sync.Mutex
@@ -1029,6 +1088,8 @@ type clientMockTransport struct {
 	setModelError          error
 	setPermissionModeError error
 	rewindFilesError       error
+	mcpStatusResponse      *McpStatusResponse
+	mcpStatusError         error
 }
 
 func (c *clientMockTransport) Connect(ctx context.Context) error {
@@ -1215,6 +1276,14 @@ func (c *clientMockTransport) RewindFiles(_ context.Context, _ string) error {
 }
 
 func (c *clientMockTransport) GetMcpStatus(_ context.Context) (*McpStatusResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.mcpStatusError != nil {
+		return nil, c.mcpStatusError
+	}
+	if c.mcpStatusResponse != nil {
+		return c.mcpStatusResponse, nil
+	}
 	return &McpStatusResponse{McpServers: []McpServerStatus{}}, nil
 }
 
@@ -1247,6 +1316,14 @@ func WithClientSetModelError(err error) ClientMockTransportOption {
 
 func WithClientSetPermissionModeError(err error) ClientMockTransportOption {
 	return func(t *clientMockTransport) { t.setPermissionModeError = err }
+}
+
+func WithClientMcpStatus(resp *McpStatusResponse) ClientMockTransportOption {
+	return func(t *clientMockTransport) { t.mcpStatusResponse = resp }
+}
+
+func WithClientMcpStatusError(err error) ClientMockTransportOption {
+	return func(t *clientMockTransport) { t.mcpStatusError = err }
 }
 
 func WithClientRewindFilesError(err error) ClientMockTransportOption {

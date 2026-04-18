@@ -1410,6 +1410,196 @@ func testGetMcpStatusSubtypeConstant(t *testing.T) {
 }
 
 // =============================================================================
+// Phase 10: Post-review fixes (silent failures, parity gaps)
+// =============================================================================
+
+// TestGetMcpStatus_PreservesConfigField verifies McpServerStatus.config (Python
+// PR #516) round-trips through GetMcpStatus. Captures the server's wire-format
+// configuration (URL, type, etc.) so callers can introspect it.
+func TestGetMcpStatus_PreservesConfigField(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		transport.mu.Lock()
+		if len(transport.writtenData) == 0 {
+			transport.mu.Unlock()
+			return
+		}
+		var req SDKControlRequest
+		_ = json.Unmarshal(transport.writtenData[0], &req)
+		transport.mu.Unlock()
+		transport.injectResponse(req.RequestID, map[string]any{
+			"mcpServers": []any{
+				map[string]any{
+					"name":   "http-server",
+					"status": "connected",
+					"config": map[string]any{
+						"type": "http",
+						"url":  "https://example.com/mcp",
+					},
+				},
+				map[string]any{
+					"name":   "sdk-server",
+					"status": "connected",
+					"config": map[string]any{
+						"type": "sdk",
+						"name": "sdk-server",
+					},
+				},
+			},
+		})
+	}()
+
+	result, err := protocol.GetMcpStatus(ctx)
+	assertControlNoError(t, err)
+	if result == nil || len(result.McpServers) != 2 {
+		t.Fatalf("expected 2 servers, got %+v", result)
+		return
+	}
+
+	httpCfg := result.McpServers[0].Config
+	if httpCfg == nil {
+		t.Fatal("expected Config for http-server, got nil")
+		return
+	}
+	assertControlEqual(t, "http", httpCfg["type"])
+	assertControlEqual(t, "https://example.com/mcp", httpCfg["url"])
+
+	sdkCfg := result.McpServers[1].Config
+	if sdkCfg == nil {
+		t.Fatal("expected Config for sdk-server, got nil")
+		return
+	}
+	assertControlEqual(t, "sdk", sdkCfg["type"])
+}
+
+// TestHandleIncomingControlRequest_EmptyRequestIDRejected verifies that control
+// requests missing or empty request_id are rejected rather than silently
+// processed with an empty ID the CLI cannot correlate.
+func TestHandleIncomingControlRequest_EmptyRequestIDRejected(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	msg := map[string]any{
+		"type": MessageTypeControlRequest,
+		// request_id intentionally omitted
+		"request": map[string]any{
+			"subtype":   SubtypeCanUseTool,
+			"tool_name": "Read",
+			"input":     map[string]any{},
+		},
+	}
+
+	err = protocol.HandleIncomingMessage(ctx, msg)
+	if err == nil {
+		t.Fatal("expected error for empty request_id, got nil")
+	}
+	if !strings.Contains(err.Error(), "request_id") {
+		t.Errorf("expected error mentioning request_id, got: %v", err)
+	}
+}
+
+// TestPermissionResult_MarshalJSONProducesBehavior verifies that the
+// MarshalJSON methods on PermissionResultAllow/Deny always emit the "behavior"
+// discriminator on the wire, regardless of the Behavior field's value.
+func TestPermissionResult_MarshalJSONProducesBehavior(t *testing.T) {
+	t.Run("allow_forces_allow_behavior", func(t *testing.T) {
+		data, err := json.Marshal(PermissionResultAllow{Behavior: "ignored-value"})
+		assertControlNoError(t, err)
+		var parsed map[string]any
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+			return
+		}
+		assertControlEqual(t, "allow", parsed["behavior"])
+	})
+
+	t.Run("deny_forces_deny_behavior", func(t *testing.T) {
+		data, err := json.Marshal(PermissionResultDeny{Behavior: "ignored", Message: "nope"})
+		assertControlNoError(t, err)
+		var parsed map[string]any
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+			return
+		}
+		assertControlEqual(t, "deny", parsed["behavior"])
+		assertControlEqual(t, "nope", parsed["message"])
+	})
+}
+
+// TestSendPermissionResponse_UsesMarshalJSON verifies the wire bytes emitted
+// by sendPermissionResponse contain the behavior field sourced from the
+// PermissionResult's MarshalJSON (exercises the code path end-to-end).
+func TestSendPermissionResponse_UsesMarshalJSON(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+
+	callback := func(_ context.Context, _ string, _ map[string]any, _ ToolPermissionContext) (PermissionResult, error) {
+		// Intentional wrong Behavior value - MarshalJSON must override it.
+		return PermissionResultAllow{Behavior: "wrong"}, nil
+	}
+
+	protocol := NewProtocol(transport, WithCanUseToolCallback(callback))
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	request := map[string]any{
+		"type":       MessageTypeControlRequest,
+		"request_id": "req_marshal_test",
+		"request": map[string]any{
+			"subtype":   SubtypeCanUseTool,
+			"tool_name": "Read",
+			"input":     map[string]any{},
+		},
+	}
+	err = protocol.HandleIncomingMessage(ctx, request)
+	assertControlNoError(t, err)
+
+	transport.mu.Lock()
+	defer transport.mu.Unlock()
+	if len(transport.writtenData) == 0 {
+		t.Fatal("expected written response")
+		return
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(transport.writtenData[0], &parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+		return
+	}
+	resp, ok := parsed["response"].(map[string]any)
+	if !ok {
+		t.Fatalf("response field missing or wrong type: %v", parsed)
+		return
+	}
+	inner, ok := resp["response"].(map[string]any)
+	if !ok {
+		t.Fatalf("inner response missing: %v", resp)
+		return
+	}
+	assertControlEqual(t, "allow", inner["behavior"])
+}
+
+// =============================================================================
 // Mock Transport for Control Protocol Tests
 // =============================================================================
 

@@ -1973,6 +1973,38 @@ func TestParseContentBlock_UnknownType_ReturnsRawContentBlock(t *testing.T) {
 	}
 }
 
+// TestParseAssistantMessage_ErrorObjectWithoutType verifies that an error field
+// that is an object but lacks the "type" key produces a non-nil Error rather
+// than being silently dropped. Without the fix, callers would receive a
+// successful AssistantMessage with Error == nil, hiding the fact that the CLI
+// reported an error.
+func TestParseAssistantMessage_ErrorObjectWithoutType(t *testing.T) {
+	p := New()
+	input := `{"type":"assistant","error":{"message":"rate limited","code":429},"message":{"content":[],"model":"claude-test","role":"assistant"}}`
+
+	msgs, err := p.ProcessLine(input)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(msgs))
+	}
+	am, ok := msgs[0].(*shared.AssistantMessage)
+	if !ok {
+		t.Fatalf("expected *shared.AssistantMessage, got %T", msgs[0])
+		return
+	}
+	if am.Error == nil {
+		t.Fatal("expected non-nil Error for object error without 'type', got nil (silent drop)")
+		return
+	}
+	// The exact value is implementation-defined; we only require it to be
+	// non-empty so callers can detect that an error was reported.
+	if string(*am.Error) == "" {
+		t.Error("expected non-empty Error string")
+	}
+}
+
 // assistantErrPtr is a helper to create a pointer to an AssistantMessageError value.
 func assistantErrPtr(e shared.AssistantMessageError) *shared.AssistantMessageError {
 	return &e
