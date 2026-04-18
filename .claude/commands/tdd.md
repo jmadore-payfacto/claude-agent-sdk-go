@@ -42,6 +42,14 @@ Retrieve and analyze issue #$ARGUMENTS:
 
 ## Phase 3: Discovery & Planning
 
+**Enter plan mode for this entire phase.** Call `EnterPlanMode` at the start of Phase 3 so all discovery, design decisions, and parity tradeoffs are captured as a plan the user approves before any code is written. The phase ends with `ExitPlanMode` at the *Critical Checkpoint* below. If already in plan mode, `EnterPlanMode` is a no-op — proceed.
+
+### Design Principle: Go Idioms Are First-Class
+
+Parity target is **observable behavior**: JSON wire format, public API surface, CLI flags, message shapes, and semantics exposed to consumers. Internal mechanics (private struct layout, helper return types, control flow shape) are **not** parity targets.
+
+When a Go idiom and a Python internal shape conflict, choose the Go idiom — nil-safety, context-first, `fmt.Errorf` with `%w` wrapping, zero-value usability, small focused interfaces, gofmt/linter conformance, channel-based concurrency — and record the deliberate divergence in the plan (and later in the commit message). The plan presented at `ExitPlanMode` must name each divergence explicitly so the user approves it up front rather than discovering it in review.
+
 ### Codebase Exploration
 
 Understand existing patterns to match the project's conventions:
@@ -98,9 +106,23 @@ Based on exploration and issue requirements, create detailed plan with:
    - Map each requirement to test cases
    - Identify how each will be verified
 
+5. **Size & Complexity Assessment:**
+   Score the issue against these signals and record the result in the plan:
+   - Files touched (create + modify)
+   - Independent types/subsystems introduced (e.g. unrelated message types, separate protocol surfaces)
+   - New public API surface (exported symbols, re-exports in `types.go`)
+   - Python PRs covered by this issue (sometimes one Go issue replays several)
+
+   Decide on the execution strategy based on the score:
+   - **Small (default):** ≤3 files, one subsystem, single Python PR — execute sequentially in a single agent context. Do **not** spawn sub-agents.
+   - **Medium:** 4-8 files or 2-3 independent types — stay sequential for RED/GREEN/BLUE, but in Phase 5 delegate the self code review to parallel `code-reviewer` agents scoped per file or per subsystem (inline `Agent` spawns, never `TeamCreate`).
+   - **Large:** 9+ files, multiple subsystems, or multiple Python PRs — first ask the user whether to split into sub-issues. If the user confirms keeping it as one cycle, then: still sequential RED/GREEN/BLUE (TDD ordering must hold), but spawn parallel reviewers in Phase 5 *and* use an `Explore` agent during Phase 3 to map existing patterns per subsystem instead of doing it inline.
+
+   Never parallelize RED or GREEN test/impl writing across agents — pattern drift and merge conflicts in a single branch outweigh the speedup. Parallelism is a *review* tool, not a *writing* tool.
+
 ### Critical Checkpoint: User Approval
 
-**Use ExitPlanMode tool to present plan and await user approval before proceeding.**
+**Call `ExitPlanMode` to present the plan and await user approval before proceeding.** The plan must include: RED/GREEN/BLUE breakdown, size/complexity score and chosen execution strategy, and an explicit list of any deliberate Go-idiom divergences from Python internals.
 
 Do NOT continue to Phase 4 until user approves the plan.
 
@@ -174,6 +196,10 @@ Push the feature branch to remote with upstream tracking.
 
 ## Phase 5: Self Code Review
 
+**Execution strategy follows the size score from Phase 3:**
+- **Small:** inline self-review using the checklists below.
+- **Medium / Large:** spawn parallel `code-reviewer` agents via the `Agent` tool (one per file or subsystem). Use inline `Agent` spawns only — never `TeamCreate`, `TeamDelete`, or broadcast. Each spawned reviewer receives the checklists below as its brief plus the list of deliberate Go-idiom divergences from the approved plan (so it does not re-flag them). Collect findings, dedupe, then fix.
+
 Before finalizing, review ALL implemented code for:
 
 ### Go Standards Checklist:
@@ -183,6 +209,7 @@ Before finalizing, review ALL implemented code for:
 - [ ] No unnecessary exports (lowercase unexported unless needed)
 - [ ] Interfaces are small and focused
 - [ ] Proper use of defer for cleanup
+- [ ] Go idioms chosen over Python internal shape where they conflict; each deliberate divergence matches the list in the approved Phase 3 plan and is noted in the commit message
 
 ### Security Checklist:
 - [ ] No hardcoded secrets or API keys

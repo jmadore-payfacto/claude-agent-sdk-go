@@ -127,8 +127,9 @@ Project-specific focus:
 - Cyclomatic complexity under 15 (per gocyclo)
 - No unreachable internal functions (per `make deadcode` — scoped to `internal/*` rooted at `./examples/...`); flag dead code in `internal/*` or public API symbols not wired through any internal path
 - Thread-safe mocks; t.Helper() in test helpers
-- Python SDK parity - cross-check ../claude-agent-sdk-python/ and docs/tracking/README.md
+- Python SDK parity - cross-check ../claude-agent-sdk-python/ and docs/tracking/README.md. The goal is feature parity with the *observable behavior* of the Python SDK: wire format (JSON field names, constants, message shapes, CLI flags), public API surface, and semantics exposed to consumers. Parity on internal mechanics (helper return types, private struct layout, control flow shape) is not a goal in itself — since this is Go, prefer idiomatic Go and established Go best practices (nil-safety, context-first, error wrapping with %w, zero-value usability, small focused interfaces, gofmt/linter conformance) over mirroring Python internals. When a Go idiom and a Python internal shape conflict, choose the Go idiom and note the deliberate divergence in code or commit message.
 - No unnecessary exports; interfaces small and focused
+- Before recommending a change to an existing line, run `git log --oneline -20 -- <file>` and scan recent commits on this branch. If the current shape was introduced deliberately in a recent commit (commit message indicates intent, not a mechanical refactor), cite that commit SHA in your finding and frame it as "reconsider X because Y" rather than "fix X". Do not silently recommend reversing a recent deliberate change.
 
 Restrictions:
 - NEVER use TeamCreate, TeamDelete, or broadcast
@@ -270,6 +271,12 @@ If re-reviewing with existing team:
 
 - Create new review tasks for fixed files only.
 - Message existing reviewers (if still active) or spawn new ones.
+- Include a "Prior cycle summary" in each re-review task description so the reviewer knows what was changed and why:
+  ```
+  PRIOR CYCLE SUMMARY (do not re-flag without new evidence):
+  - <file:symbol> — changed to <short description> because <rationale>.
+  ```
+  Add to the reviewer prompt: "If you would flag a symbol listed in PRIOR CYCLE SUMMARY, cite new evidence (failing test, concrete bug scenario, or a correctness/safety concern not previously raised). Do not re-raise on stylistic preference alone."
 - Collect and present delta results.
 
 ---
