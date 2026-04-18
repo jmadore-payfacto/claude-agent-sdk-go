@@ -36,6 +36,15 @@ shared/
 - `UUID`, `ParentToolUseID`: optional string pointers
 - `ToolUseResult map[string]any`: rich edit metadata (filePath, structuredPatch, diffs); use `HasToolUseResult()` / `GetToolUseResult()`
 
+**Options types (options.go)**:
+- `ThinkingConfig` interface (sealed): `ThinkingConfigAdaptive`, `ThinkingConfigEnabled{BudgetTokens}`, `ThinkingConfigDisabled`
+- `AgentDefinition{Description, Prompt, Tools, Model}` with `AgentModel` constants (sonnet/opus/haiku/inherit)
+- `SandboxSettings{Enabled, AutoAllowBashIfSandboxed, ExcludedCommands, Network, IgnoreViolations}`
+- `SandboxNetworkConfig{AllowUnixSockets, AllowAllUnixSockets, AllowLocalBinding, HTTPProxyPort, SOCKSProxyPort}`
+- `ToolsPreset{Type: "preset", Preset}` - preset tools config (e.g., "claude_code")
+- `SettingSource` (user/project/local), `SdkBeta`, `SdkPluginType`/`SdkPluginConfig{Type, Path}`
+- `OutputFormat{Type: "json_schema", Schema map[string]any}` - structured JSON output
+
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: conventions -->
@@ -45,6 +54,8 @@ shared/
 - Custom JSON unmarshaling: Use `json.RawMessage` for delayed parsing
 - Type discrimination: Switch on `"type"` field for union types
 - Error wrapping: Use `%w` verb for error chain support
+- Sealed union pattern: Unexported marker method (e.g. `thinkingConfig()`) prevents external implementations of union interfaces like `ThinkingConfig`
+- Options validation: `Options.Validate()` enforces field constraints (AgentDefinition.Model must be sonnet/opus/haiku/inherit/empty)
 
 <!-- END AUTO-MANAGED -->
 

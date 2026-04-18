@@ -45,6 +45,10 @@ control/
 - Agents-in-initialize: `WithOptions()` ProtocolOption stores `shared.Options` on Protocol; `Initialize()` reads `options.Agents` and builds `InitializeRequest.Agents` map (description/prompt/tools/model per agent)
 - GetMcpStatus: sends `GetMcpStatusRequest{SubtypeGetMcpStatus}` with 5s timeout; response re-marshaled from `map[string]any` to typed `*McpStatusResponse{McpServers []McpServerStatus}`
 - McpToolInfo vs McpToolDefinition: `McpToolInfo` (types.go) used only in status responses; `shared.McpToolDefinition` used for SDK MCP server tool definitions - not interchangeable
+- RewindFiles: `RewindFilesRequest{SubtypeRewindFiles, UserMessageID}` rewinds file state to a specific user message; obtain UserMessageID from `UserMessage.UUID` received during session
+- Permission secure-deny default: `handleCanUseToolRequest` returns `NewPermissionResultDeny(...)` when no `CanUseToolCallback` is registered; never permits by default
+- parsePermissionSuggestions forward-compat: silently skips unrecognized items in `permission_suggestions` array to tolerate new CLI fields without breaking older SDK versions
+- PermissionResultAllow/Deny MarshalJSON: hard-codes `"behavior"` discriminator on wire regardless of struct field value - caller cannot accidentally invert the discriminator
 
 <!-- END AUTO-MANAGED -->
 

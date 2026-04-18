@@ -34,6 +34,9 @@ parser/
 - Speculative parsing: Match Python SDK behavior for streaming JSON
 - Type discrimination: Use `"type"` field to determine message type
 - `tool_use_result` extraction: `parseUserMessage` reads top-level `tool_use_result` map and passes it into `UserMessage.ToolUseResult`
+- Control message routing: `control_request` and `control_response` types return `&shared.RawControlMessage{MessageType, Data}` - bypasses user-facing message stream, handled by control protocol layer
+- Stream event handling: `stream_event` type dispatched to `parseStreamEventMessage`
+- Forward-compat: unknown message types return `&shared.RawMessage{MessageType, Data}` instead of an error - new CLI versions can add types without breaking older SDK versions
 
 <!-- END AUTO-MANAGED -->
 
