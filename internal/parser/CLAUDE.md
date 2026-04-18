@@ -37,6 +37,7 @@ parser/
 - Control message routing: `control_request` and `control_response` types return `&shared.RawControlMessage{MessageType, Data}` - bypasses user-facing message stream, handled by control protocol layer
 - Stream event handling: `stream_event` type dispatched to `parseStreamEventMessage`
 - Forward-compat: unknown message types return `&shared.RawMessage{MessageType, Data}` instead of an error - new CLI versions can add types without breaking older SDK versions
+- parseResultRequiredFields helper: required fields of ResultMessage (subtype, duration_ms, duration_api_ms, is_error, num_turns, session_id) extracted into a standalone function to keep `parseResultMessage` cyclomatic complexity under the gocyclo threshold as optional fields grow
 
 <!-- END AUTO-MANAGED -->
 

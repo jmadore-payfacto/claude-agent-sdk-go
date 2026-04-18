@@ -37,7 +37,7 @@ shared/
 - `ToolUseResult map[string]any`: rich edit metadata (filePath, structuredPatch, diffs); use `HasToolUseResult()` / `GetToolUseResult()`
 
 **Options types (options.go)**:
-- `ThinkingConfig` interface (sealed): `ThinkingConfigAdaptive`, `ThinkingConfigEnabled{BudgetTokens}`, `ThinkingConfigDisabled`
+- `ThinkingConfig` interface (sealed): `ThinkingConfigAdaptive`, `ThinkingConfigEnabled{BudgetTokens int \`json:"budget_tokens"\`}`, `ThinkingConfigDisabled`
 - `AgentDefinition{Description, Prompt, Tools, Model}` with `AgentModel` constants (sonnet/opus/haiku/inherit)
 - `SandboxSettings{Enabled, AutoAllowBashIfSandboxed, ExcludedCommands, Network, IgnoreViolations}`
 - `SandboxNetworkConfig{AllowUnixSockets, AllowAllUnixSockets, AllowLocalBinding, HTTPProxyPort, SOCKSProxyPort}`
@@ -55,7 +55,7 @@ shared/
 - Type discrimination: Switch on `"type"` field for union types
 - Error wrapping: Use `%w` verb for error chain support
 - Sealed union pattern: Unexported marker method (e.g. `thinkingConfig()`) prevents external implementations of union interfaces like `ThinkingConfig`
-- Options validation: `Options.Validate()` enforces field constraints (AgentDefinition.Model must be sonnet/opus/haiku/inherit/empty)
+- Options validation: `Options.Validate()` enforces field constraints (AgentDefinition.Model must be sonnet/opus/haiku/inherit/empty; ThinkingConfigEnabled.BudgetTokens must be non-negative)
 
 <!-- END AUTO-MANAGED -->
 
