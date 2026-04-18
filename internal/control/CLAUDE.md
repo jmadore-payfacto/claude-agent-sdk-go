@@ -50,6 +50,7 @@ control/
 - RewindFiles: `RewindFilesRequest{SubtypeRewindFiles, UserMessageID}` rewinds file state to a specific user message; obtain UserMessageID from `UserMessage.UUID` received during session
 - Permission secure-deny default: `handleCanUseToolRequest` returns `NewPermissionResultDeny(...)` when no `CanUseToolCallback` is registered; never permits by default
 - parsePermissionSuggestions forward-compat: silently skips unrecognized items in `permission_suggestions` array to tolerate new CLI fields without breaking older SDK versions
+- ToolPermissionContext ToolUseID/AgentID: `handleCanUseToolRequest` parses `tool_use_id` and `agent_id` from the request map (Python PR #754); stored as `*string` on `ToolPermissionContext`; `ToolUseID` lets callbacks disambiguate concurrent tool calls; `AgentID` identifies the originating subagent; both nil when the CLI does not send them (older CLI versions)
 - PermissionResultAllow/Deny MarshalJSON: hard-codes `"behavior"` discriminator on wire regardless of struct field value - caller cannot accidentally invert the discriminator
 - UpdatedMCPToolOutput foot-gun: `PostToolUseHookSpecificOutput.UpdatedMCPToolOutput` is typed `any` with `omitempty`; `omitempty` only elides nil for `any` - zero-value scalars (`""`, `0`, `false`) are still serialized; leave field nil to omit entirely
 
