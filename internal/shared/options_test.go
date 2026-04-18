@@ -1,8 +1,36 @@
 package shared
 
 import (
+	"encoding/json"
 	"testing"
 )
+
+// TestThinkingConfigMarshalJSON verifies each ThinkingConfig variant emits
+// the Python-SDK-compatible type discriminator on the wire (parity with
+// Python SDK ThinkingConfig{Adaptive,Enabled,Disabled}.type literals).
+func TestThinkingConfigMarshalJSON(t *testing.T) {
+	tests := []struct {
+		name   string
+		config ThinkingConfig
+		want   string
+	}{
+		{"adaptive", ThinkingConfigAdaptive{}, `{"type":"adaptive"}`},
+		{"enabled", ThinkingConfigEnabled{BudgetTokens: 5000}, `{"type":"enabled","budget_tokens":5000}`},
+		{"disabled", ThinkingConfigDisabled{}, `{"type":"disabled"}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := json.Marshal(tt.config)
+			if err != nil {
+				t.Fatalf("Marshal(%T) error: %v", tt.config, err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("Marshal(%T) = %s, want %s", tt.config, got, tt.want)
+			}
+		})
+	}
+}
 
 // TestOptionsDefaults tests Options struct default values using table-driven approach
 func TestOptionsDefaults(t *testing.T) {

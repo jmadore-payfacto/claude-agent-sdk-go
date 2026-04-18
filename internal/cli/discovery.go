@@ -221,8 +221,8 @@ func addModelAndPromptFlags(cmd []string, options *shared.Options) []string {
 		case shared.ThinkingConfigDisabled:
 			cmd = append(cmd, "--thinking", "disabled")
 		}
-	} else if options.MaxThinkingTokens > 0 {
-		cmd = append(cmd, "--max-thinking-tokens", fmt.Sprintf("%d", options.MaxThinkingTokens))
+	} else if options.MaxThinkingTokens > 0 { //nolint:staticcheck // backward-compat support for the deprecated legacy knob
+		cmd = append(cmd, "--max-thinking-tokens", fmt.Sprintf("%d", options.MaxThinkingTokens)) //nolint:staticcheck // backward-compat support for the deprecated legacy knob
 	}
 	if options.Effort != nil {
 		cmd = append(cmd, "--effort", *options.Effort)

@@ -50,6 +50,7 @@ control/
 - Permission secure-deny default: `handleCanUseToolRequest` returns `NewPermissionResultDeny(...)` when no `CanUseToolCallback` is registered; never permits by default
 - parsePermissionSuggestions forward-compat: silently skips unrecognized items in `permission_suggestions` array to tolerate new CLI fields without breaking older SDK versions
 - PermissionResultAllow/Deny MarshalJSON: hard-codes `"behavior"` discriminator on wire regardless of struct field value - caller cannot accidentally invert the discriminator
+- UpdatedMCPToolOutput foot-gun: `PostToolUseHookSpecificOutput.UpdatedMCPToolOutput` is typed `any` with `omitempty`; `omitempty` only elides nil for `any` - zero-value scalars (`""`, `0`, `false`) are still serialized; leave field nil to omit entirely
 
 <!-- END AUTO-MANAGED -->
 

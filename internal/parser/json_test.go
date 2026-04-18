@@ -1858,17 +1858,22 @@ func TestParseAssistantMessage_ErrorField(t *testing.T) {
 		{
 			name:      "rate_limit error as object",
 			input:     `{"type":"assistant","error":{"type":"rate_limit","message":"too many requests"},"message":{"content":[],"model":"claude-test","role":"assistant"}}`,
-			wantError: assistantErrPtr(shared.AssistantMessageError("rate_limit")),
+			wantError: assistantErrPtr(shared.AssistantMessageErrorRateLimit),
 		},
 		{
 			name:      "billing_error as object",
 			input:     `{"type":"assistant","error":{"type":"billing_error","message":"billing issue"},"message":{"content":[],"model":"claude-test","role":"assistant"}}`,
-			wantError: assistantErrPtr(shared.AssistantMessageError("billing_error")),
+			wantError: assistantErrPtr(shared.AssistantMessageErrorBilling),
 		},
 		{
 			name:      "server_error as object",
 			input:     `{"type":"assistant","error":{"type":"server_error","message":"internal error"},"message":{"content":[],"model":"claude-test","role":"assistant"}}`,
-			wantError: assistantErrPtr(shared.AssistantMessageError("server_error")),
+			wantError: assistantErrPtr(shared.AssistantMessageErrorServer),
+		},
+		{
+			name:      "authentication_failed as object",
+			input:     `{"type":"assistant","error":{"type":"authentication_failed","message":"auth expired"},"message":{"content":[],"model":"claude-test","role":"assistant"}}`,
+			wantError: assistantErrPtr(shared.AssistantMessageErrorAuthFailed),
 		},
 		{
 			name:      "no error",

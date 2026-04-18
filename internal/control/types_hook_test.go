@@ -926,6 +926,35 @@ func TestPostToolUseHookSpecificOutput_UpdatedMCPToolOutput(t *testing.T) {
 	}
 }
 
+// TestPostToolUseHookSpecificOutput_UpdatedMCPToolOutputOmitted verifies the
+// `updatedMCPToolOutput` field is absent from the wire when unset (nil),
+// matching the `omitempty` contract documented on the struct field.
+func TestPostToolUseHookSpecificOutput_UpdatedMCPToolOutputOmitted(t *testing.T) {
+	ctxStr := "just context"
+	output := PostToolUseHookSpecificOutput{
+		HookEventName:     "PostToolUse",
+		AdditionalContext: &ctxStr,
+		// UpdatedMCPToolOutput left nil
+	}
+
+	data, err := json.Marshal(output)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+
+	if _, exists := result["updatedMCPToolOutput"]; exists {
+		t.Error("updatedMCPToolOutput should be omitted when nil")
+	}
+	if got, _ := result["additionalContext"].(string); got != ctxStr {
+		t.Errorf("additionalContext = %q, want %q", got, ctxStr)
+	}
+}
+
 // =============================================================================
 // Existing Hooks - Agent Fields Tests (Python SDK PR #545)
 // =============================================================================

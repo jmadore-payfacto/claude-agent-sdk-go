@@ -553,7 +553,7 @@ func WithStderrCallback(callback func(string)) Option {
 // OutputFormatJSONSchema creates an OutputFormat for JSON schema constraints.
 func OutputFormatJSONSchema(schema map[string]any) *OutputFormat {
 	return &OutputFormat{
-		Type:   "json_schema",
+		Type:   OutputFormatTypeJSONSchema,
 		Schema: schema,
 	}
 }

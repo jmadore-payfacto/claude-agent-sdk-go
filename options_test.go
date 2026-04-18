@@ -252,8 +252,8 @@ func TestFunctionalOptionsPattern(t *testing.T) {
 		t.Errorf("Expected AddDirs length = %d, got %d", len(expectedAddDirs), len(options.AddDirs))
 	}
 
-	if options.MaxThinkingTokens != 10000 {
-		t.Errorf("Expected MaxThinkingTokens = 10000, got %d", options.MaxThinkingTokens)
+	if options.MaxThinkingTokens != 10000 { //nolint:staticcheck // tests the deprecated legacy field on purpose
+		t.Errorf("Expected MaxThinkingTokens = 10000, got %d", options.MaxThinkingTokens) //nolint:staticcheck // tests the deprecated legacy field on purpose
 	}
 
 	if options.PermissionPromptToolName == nil || *options.PermissionPromptToolName != "CustomPermissionTool" {
@@ -589,8 +589,8 @@ func TestWithCLIPath(t *testing.T) {
 // assertOptionsMaxThinkingTokens verifies MaxThinkingTokens value
 func assertOptionsMaxThinkingTokens(t *testing.T, options *Options, expected int) {
 	t.Helper()
-	if options.MaxThinkingTokens != expected {
-		t.Errorf("Expected MaxThinkingTokens = %d, got %d", expected, options.MaxThinkingTokens)
+	if options.MaxThinkingTokens != expected { //nolint:staticcheck // tests the deprecated legacy field on purpose
+		t.Errorf("Expected MaxThinkingTokens = %d, got %d", expected, options.MaxThinkingTokens) //nolint:staticcheck // tests the deprecated legacy field on purpose
 	}
 }
 

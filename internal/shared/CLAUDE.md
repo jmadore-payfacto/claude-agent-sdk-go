@@ -37,13 +37,13 @@ shared/
 - `ToolUseResult map[string]any`: rich edit metadata (filePath, structuredPatch, diffs); use `HasToolUseResult()` / `GetToolUseResult()`
 
 **Options types (options.go)**:
-- `ThinkingConfig` interface (sealed): `ThinkingConfigAdaptive`, `ThinkingConfigEnabled{BudgetTokens int \`json:"budget_tokens"\`}`, `ThinkingConfigDisabled`
+- `ThinkingConfig` interface (sealed): `ThinkingConfigAdaptive`, `ThinkingConfigEnabled{BudgetTokens int \`json:"budget_tokens"\`}`, `ThinkingConfigDisabled`; all three implement `MarshalJSON` emitting Python-SDK-compatible `"type"` discriminator; `ThinkingConfigEnabled` also emits `budget_tokens`; private constants `thinkingConfigTypeAdaptive/Enabled/Disabled` hold wire values
 - `AgentDefinition{Description, Prompt, Tools, Model}` with `AgentModel` constants (sonnet/opus/haiku/inherit)
 - `SandboxSettings{Enabled, AutoAllowBashIfSandboxed, ExcludedCommands, Network, IgnoreViolations}`
 - `SandboxNetworkConfig{AllowUnixSockets, AllowAllUnixSockets, AllowLocalBinding, HTTPProxyPort, SOCKSProxyPort}`
 - `ToolsPreset{Type: "preset", Preset}` - preset tools config (e.g., "claude_code")
 - `SettingSource` (user/project/local), `SdkBeta`, `SdkPluginType`/`SdkPluginConfig{Type, Path}`
-- `OutputFormat{Type: "json_schema", Schema map[string]any}` - structured JSON output
+- `OutputFormat{Type: "json_schema", Schema map[string]any}` - structured JSON output; `OutputFormatTypeJSONSchema` constant defined here, re-exported in root `types.go`
 
 <!-- END AUTO-MANAGED -->
 

@@ -973,6 +973,7 @@ func testGetMcpStatusReturnsServers(t *testing.T) {
 	assertControlEqual(t, McpServerConnectionStatus("connected"), connected.Status)
 	if connected.ServerInfo == nil {
 		t.Fatal("expected non-nil ServerInfo for connected server")
+		return
 	}
 	assertControlEqual(t, "My MCP Server", connected.ServerInfo.Name)
 
@@ -981,6 +982,7 @@ func testGetMcpStatusReturnsServers(t *testing.T) {
 	assertControlEqual(t, McpServerConnectionStatus("failed"), failed.Status)
 	if failed.Error == nil {
 		t.Fatal("expected non-nil Error for failed server")
+		return
 	}
 	assertControlEqual(t, "connection refused", *failed.Error)
 }
@@ -1066,6 +1068,7 @@ func testGetMcpStatusRequestSubtype(t *testing.T) {
 
 	if len(transport.writtenData) == 0 {
 		t.Fatal("expected request to be sent")
+		return
 	}
 
 	var req SDKControlRequest
@@ -1075,6 +1078,7 @@ func testGetMcpStatusRequestSubtype(t *testing.T) {
 	request, ok := req.Request.(map[string]any)
 	if !ok {
 		t.Fatal("request should be a map")
+		return
 	}
 	assertControlEqual(t, SubtypeGetMcpStatus, request["subtype"])
 }
@@ -1113,11 +1117,13 @@ func testInitializeIncludesAgents(t *testing.T) {
 	agents, ok := parsed["agents"].(map[string]any)
 	if !ok {
 		t.Fatal("expected agents field in initialize request")
+		return
 	}
 
 	researcher, ok := agents["researcher"].(map[string]any)
 	if !ok {
 		t.Fatal("expected researcher agent in agents map")
+		return
 	}
 	assertControlEqual(t, "A research agent", researcher["description"])
 	assertControlEqual(t, "You research topics thoroughly.", researcher["prompt"])
@@ -1267,7 +1273,11 @@ func TestGetMcpStatus_ErrorResponse(t *testing.T) {
 			return
 		}
 		var req SDKControlRequest
-		_ = json.Unmarshal(transport.writtenData[0], &req)
+		if err := json.Unmarshal(transport.writtenData[0], &req); err != nil {
+			transport.mu.Unlock()
+			t.Errorf("unmarshal captured request: %v", err)
+			return
+		}
 		transport.mu.Unlock()
 		transport.injectErrorResponse(req.RequestID, "CLI failed to enumerate MCP servers")
 	}()
@@ -1509,9 +1519,55 @@ func TestHandleIncomingControlRequest_EmptyRequestIDRejected(t *testing.T) {
 	err = protocol.HandleIncomingMessage(ctx, msg)
 	if err == nil {
 		t.Fatal("expected error for empty request_id, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "request_id") {
 		t.Errorf("expected error mentioning request_id, got: %v", err)
+	}
+}
+
+// TestHandleIncomingControlRequest_UnknownSubtypeSendsError verifies forward-
+// compat behavior: when the CLI sends a control_request with a subtype the SDK
+// does not recognize, we must reply with an error response (not silently
+// ignore) so the CLI does not block waiting for the request_id to resolve.
+func TestHandleIncomingControlRequest_UnknownSubtypeSendsError(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+	protocol := NewProtocol(transport)
+
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	msg := map[string]any{
+		"type":       MessageTypeControlRequest,
+		"request_id": "req_unknown_subtype",
+		"request": map[string]any{
+			"subtype": "future_subtype_not_yet_supported",
+		},
+	}
+
+	err = protocol.HandleIncomingMessage(ctx, msg)
+	assertControlNoError(t, err)
+
+	transport.mu.Lock()
+	defer transport.mu.Unlock()
+
+	if len(transport.writtenData) == 0 {
+		t.Fatal("expected error response to be written")
+	}
+
+	var resp SDKControlResponse
+	if err := json.Unmarshal(transport.writtenData[0], &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	assertControlEqual(t, MessageTypeControlResponse, resp.Type)
+	assertControlEqual(t, ResponseSubtypeError, resp.Response.Subtype)
+	assertControlEqual(t, "req_unknown_subtype", resp.Response.RequestID)
+	if !strings.Contains(resp.Response.Error, "future_subtype_not_yet_supported") {
+		t.Errorf("error message should mention the unknown subtype, got: %q", resp.Response.Error)
 	}
 }
 

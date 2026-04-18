@@ -62,8 +62,9 @@ type PreToolUseHookInput struct {
 	ToolName string `json:"tool_name"`
 	// ToolInput contains the tool's input parameters.
 	ToolInput map[string]any `json:"tool_input"`
-	// ToolUseID is the unique identifier for this tool use (optional).
-	ToolUseID string `json:"tool_use_id,omitempty"`
+	// ToolUseID is the unique identifier for this tool use.
+	// Required per Python SDK PreToolUseHookInput.
+	ToolUseID string `json:"tool_use_id"`
 	// AgentID identifies the agent making the tool use (optional).
 	AgentID *string `json:"agent_id,omitempty"`
 	// AgentType identifies the type of agent (optional).
@@ -82,8 +83,9 @@ type PostToolUseHookInput struct {
 	ToolInput map[string]any `json:"tool_input"`
 	// ToolResponse contains the tool's output.
 	ToolResponse any `json:"tool_response"`
-	// ToolUseID is the unique identifier for this tool use (optional).
-	ToolUseID string `json:"tool_use_id,omitempty"`
+	// ToolUseID is the unique identifier for this tool use.
+	// Required per Python SDK PostToolUseHookInput.
+	ToolUseID string `json:"tool_use_id"`
 	// AgentID identifies the agent making the tool use (optional).
 	AgentID *string `json:"agent_id,omitempty"`
 	// AgentType identifies the type of agent (optional).
@@ -148,8 +150,9 @@ type PostToolUseFailureHookInput struct {
 	ToolName string `json:"tool_name"`
 	// ToolInput contains the tool's input parameters.
 	ToolInput map[string]any `json:"tool_input"`
-	// ToolUseID is the unique identifier for this tool use (optional).
-	ToolUseID string `json:"tool_use_id,omitempty"`
+	// ToolUseID is the unique identifier for this tool use.
+	// Required per Python SDK PostToolUseFailureHookInput.
+	ToolUseID string `json:"tool_use_id"`
 	// Error is the error message from the failed tool execution.
 	Error string `json:"error"`
 	// IsInterrupt indicates if the failure was due to an interrupt (optional).
@@ -230,7 +233,9 @@ type PostToolUseHookSpecificOutput struct {
 	HookEventName string `json:"hookEventName"`
 	// AdditionalContext provides extra context for Claude.
 	AdditionalContext *string `json:"additionalContext,omitempty"`
-	// UpdatedMCPToolOutput allows hooks to rewrite MCP tool output sent to Claude.
+	// UpdatedMCPToolOutput rewrites MCP tool output sent to Claude. Accepts a
+	// string or structured MCP content payload. Leave nil to omit; zero-value
+	// scalars ("", 0, false) are serialized (omitempty only drops nil for any).
 	UpdatedMCPToolOutput any `json:"updatedMCPToolOutput,omitempty"`
 }
 

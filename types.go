@@ -98,6 +98,10 @@ const (
 	AssistantMessageErrorUnknown        = shared.AssistantMessageErrorUnknown
 )
 
+// OutputFormatTypeJSONSchema is the only currently-supported value for
+// OutputFormat.Type.
+const OutputFormatTypeJSONSchema = shared.OutputFormatTypeJSONSchema
+
 // AgentModel represents the model to use for an agent.
 type AgentModel = shared.AgentModel
 

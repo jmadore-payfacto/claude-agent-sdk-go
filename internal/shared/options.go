@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -108,10 +109,14 @@ type SdkPluginConfig struct {
 	Path string `json:"path"`
 }
 
+// OutputFormatTypeJSONSchema is the only currently-supported value for
+// OutputFormat.Type. Matches the Messages API structured-output wire contract.
+const OutputFormatTypeJSONSchema = "json_schema"
+
 // OutputFormat specifies the format for structured output.
 // Matches the Messages API structure: {"type": "json_schema", "schema": {...}}
 type OutputFormat struct {
-	Type   string         `json:"type"`   // Always "json_schema"
+	Type   string         `json:"type"`   // Always OutputFormatTypeJSONSchema
 	Schema map[string]any `json:"schema"` // JSON Schema definition
 }
 
@@ -151,10 +156,27 @@ type ThinkingConfig interface {
 	thinkingConfig() // unexported - seals the union
 }
 
+// Thinking config wire discriminator values. Match Python SDK
+// ThinkingConfig{Adaptive,Enabled,Disabled}.type literals.
+const (
+	thinkingConfigTypeAdaptive = "adaptive"
+	thinkingConfigTypeEnabled  = "enabled"
+	thinkingConfigTypeDisabled = "disabled"
+)
+
 // ThinkingConfigAdaptive lets the model decide its thinking budget adaptively.
 type ThinkingConfigAdaptive struct{}
 
 func (ThinkingConfigAdaptive) thinkingConfig() {}
+
+// MarshalJSON emits the Python-SDK-compatible discriminator so this variant
+// roundtrips correctly if ever serialized (e.g., in future control-protocol
+// payloads that carry thinking config on the wire).
+func (ThinkingConfigAdaptive) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string `json:"type"`
+	}{Type: thinkingConfigTypeAdaptive})
+}
 
 // ThinkingConfigEnabled enables thinking with an explicit token budget.
 type ThinkingConfigEnabled struct {
@@ -164,10 +186,27 @@ type ThinkingConfigEnabled struct {
 
 func (ThinkingConfigEnabled) thinkingConfig() {}
 
+// MarshalJSON emits the Python-SDK-compatible discriminator alongside
+// budget_tokens so this variant roundtrips correctly on the wire.
+func (t ThinkingConfigEnabled) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string `json:"type"`
+		BudgetTokens int    `json:"budget_tokens"`
+	}{Type: thinkingConfigTypeEnabled, BudgetTokens: t.BudgetTokens})
+}
+
 // ThinkingConfigDisabled disables extended thinking explicitly.
 type ThinkingConfigDisabled struct{}
 
 func (ThinkingConfigDisabled) thinkingConfig() {}
+
+// MarshalJSON emits the Python-SDK-compatible discriminator so this variant
+// roundtrips correctly if ever serialized.
+func (ThinkingConfigDisabled) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string `json:"type"`
+	}{Type: thinkingConfigTypeDisabled})
+}
 
 // Options configures the Claude Agent SDK behavior.
 type Options struct {
@@ -187,7 +226,11 @@ type Options struct {
 	AppendSystemPrompt *string `json:"append_system_prompt,omitempty"`
 	Model              *string `json:"model,omitempty"`
 	FallbackModel      *string `json:"fallback_model,omitempty"`
-	MaxThinkingTokens  int     `json:"max_thinking_tokens,omitempty"`
+	// MaxThinkingTokens is the legacy thinking-budget knob.
+	//
+	// Deprecated: Use Thinking (ThinkingConfig) instead. When Thinking is set
+	// it takes precedence over MaxThinkingTokens.
+	MaxThinkingTokens int `json:"max_thinking_tokens,omitempty"`
 
 	// Thinking configures the model's extended thinking behavior.
 	// When set, takes precedence over MaxThinkingTokens.
@@ -433,6 +476,13 @@ func (o *Options) Validate() error {
 		if allowedSet[tool] {
 			return fmt.Errorf("tool '%s' cannot be in both AllowedTools and DisallowedTools", tool)
 		}
+	}
+
+	// Validate OutputFormat.Type when set. The only currently-supported wire
+	// value is "json_schema"; empty is permitted for callers that leave the
+	// zero value (OutputFormat unset).
+	if o.OutputFormat != nil && o.OutputFormat.Type != "" && o.OutputFormat.Type != OutputFormatTypeJSONSchema {
+		return fmt.Errorf("OutputFormat.Type must be %q, got %q", OutputFormatTypeJSONSchema, o.OutputFormat.Type)
 	}
 
 	// Validate AgentDefinition.Model values: empty (== inherit) or one of the
