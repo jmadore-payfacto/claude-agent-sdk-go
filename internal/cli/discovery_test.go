@@ -890,6 +890,15 @@ func TestSessionManagementFlagsSupport(t *testing.T) {
 			validate: validateSettingSourcesEmpty,
 		},
 		{
+			// Nil (unset) SettingSources must NOT emit --setting-sources at
+			// all, matching Python's "if effective_setting_sources is not
+			// None" guard in subprocess_cli.py (Python PR #778). Emitting
+			// --setting-sources="" overrides the CLI's own default behavior.
+			name:     "setting_sources_nil_omitted",
+			options:  &shared.Options{SettingSources: nil},
+			validate: validateSettingSourcesOmitted,
+		},
+		{
 			name: "fork_session_with_resume",
 			options: &shared.Options{
 				Resume:         stringPtr("session-123"),
@@ -936,6 +945,11 @@ func validateSettingSourcesAll(t *testing.T, cmd []string) {
 func validateSettingSourcesEmpty(t *testing.T, cmd []string) {
 	t.Helper()
 	assertContainsArgs(t, cmd, "--setting-sources", "")
+}
+
+func validateSettingSourcesOmitted(t *testing.T, cmd []string) {
+	t.Helper()
+	assertNotContainsArg(t, cmd, "--setting-sources")
 }
 
 func validateForkSessionWithResume(t *testing.T, cmd []string) {

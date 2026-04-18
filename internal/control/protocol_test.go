@@ -2568,6 +2568,91 @@ func testPermissionCallbackPanicRecovery(t *testing.T) {
 	assertControlEqual(t, ResponseSubtypeError, resp.Response.Subtype)
 }
 
+// TestPermissionContext_ToolUseIDAndAgentID verifies that tool_use_id and
+// agent_id from the incoming can_use_tool request are forwarded to the
+// callback via ToolPermissionContext. The CLI populates these fields on
+// every permission request (Python PR #754); dropping them leaves callbacks
+// unable to identify which tool call (or subagent) is being gated.
+func TestPermissionContext_ToolUseIDAndAgentID(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+
+	var gotCtx ToolPermissionContext
+	callback := func(_ context.Context, _ string, _ map[string]any, tpc ToolPermissionContext) (PermissionResult, error) {
+		gotCtx = tpc
+		return NewPermissionResultAllow(), nil
+	}
+
+	protocol := NewProtocol(transport, WithCanUseToolCallback(callback))
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	request := map[string]any{
+		"type":       MessageTypeControlRequest,
+		"request_id": "req_ctx_1",
+		"request": map[string]any{
+			"subtype":      SubtypeCanUseTool,
+			"tool_name":    "Read",
+			"input":        map[string]any{"file_path": "/tmp/x"},
+			"tool_use_id":  "toolu_01ABCDEF",
+			"agent_id":     "agent_42",
+		},
+	}
+
+	err = protocol.HandleIncomingMessage(ctx, request)
+	assertControlNoError(t, err)
+
+	if gotCtx.ToolUseID == nil || *gotCtx.ToolUseID != "toolu_01ABCDEF" {
+		t.Errorf("ToolUseID = %v, want %q", gotCtx.ToolUseID, "toolu_01ABCDEF")
+	}
+	if gotCtx.AgentID == nil || *gotCtx.AgentID != "agent_42" {
+		t.Errorf("AgentID = %v, want %q", gotCtx.AgentID, "agent_42")
+	}
+}
+
+// TestPermissionContext_ToolUseIDAndAgentID_Absent verifies that missing
+// tool_use_id / agent_id leaves the context pointers nil, matching the
+// Python SDK's None default.
+func TestPermissionContext_ToolUseIDAndAgentID_Absent(t *testing.T) {
+	ctx, cancel := setupControlTestContext(t, 5*time.Second)
+	defer cancel()
+
+	transport := newControlMockTransport()
+
+	var gotCtx ToolPermissionContext
+	callback := func(_ context.Context, _ string, _ map[string]any, tpc ToolPermissionContext) (PermissionResult, error) {
+		gotCtx = tpc
+		return NewPermissionResultAllow(), nil
+	}
+
+	protocol := NewProtocol(transport, WithCanUseToolCallback(callback))
+	err := protocol.Start(ctx)
+	assertControlNoError(t, err)
+	defer func() { _ = protocol.Close() }()
+
+	request := map[string]any{
+		"type":       MessageTypeControlRequest,
+		"request_id": "req_ctx_2",
+		"request": map[string]any{
+			"subtype":   SubtypeCanUseTool,
+			"tool_name": "Read",
+			"input":     map[string]any{},
+		},
+	}
+	err = protocol.HandleIncomingMessage(ctx, request)
+	assertControlNoError(t, err)
+
+	if gotCtx.ToolUseID != nil {
+		t.Errorf("ToolUseID = %v, want nil", *gotCtx.ToolUseID)
+	}
+	if gotCtx.AgentID != nil {
+		t.Errorf("AgentID = %v, want nil", *gotCtx.AgentID)
+	}
+}
+
 // TestPermissionTypeSerialization tests JSON serialization of permission types.
 func TestPermissionTypeSerialization(t *testing.T) {
 	t.Run("marshal_allow_result", testMarshalPermissionAllowResult)

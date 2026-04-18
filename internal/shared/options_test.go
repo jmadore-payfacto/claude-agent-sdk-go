@@ -32,6 +32,39 @@ func TestThinkingConfigMarshalJSON(t *testing.T) {
 	}
 }
 
+// TestOptionsValidate_AgentModel verifies Options.Validate() accepts both
+// short aliases and full model IDs for AgentDefinition.Model. Python's
+// AgentDefinition documents Model as "alias or full model ID" and performs
+// no validation; rejecting strings the Python SDK would accept breaks parity
+// and prevents users from pinning specific model versions.
+func TestOptionsValidate_AgentModel(t *testing.T) {
+	tests := []struct {
+		name  string
+		model AgentModel
+	}{
+		{"empty", ""},
+		{"sonnet", AgentModelSonnet},
+		{"opus", AgentModelOpus},
+		{"haiku", AgentModelHaiku},
+		{"inherit", AgentModelInherit},
+		{"full_model_id_opus", "claude-opus-4-7"},
+		{"full_model_id_sonnet", "claude-sonnet-4-6"},
+		{"full_model_id_dated", "claude-haiku-4-5-20251001"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := NewOptions()
+			opts.Agents = map[string]AgentDefinition{
+				"reviewer": {Description: "d", Prompt: "p", Model: tt.model},
+			}
+			if err := opts.Validate(); err != nil {
+				t.Errorf("Validate() rejected Model %q: %v (expected accept)", tt.model, err)
+			}
+		})
+	}
+}
+
 // TestOptionsDefaults tests Options struct default values using table-driven approach
 func TestOptionsDefaults(t *testing.T) {
 	options := NewOptions()

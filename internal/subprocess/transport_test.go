@@ -20,6 +20,56 @@ const (
 	testModelName    = "claude-sonnet-4-5"
 )
 
+// TestNeedsProtocolHandshake_StreamingAlwaysInitializes verifies that the
+// control protocol handshake is performed for every streaming-mode client,
+// not only when hooks/permissions/MCP/agents are configured. Without this,
+// calls like Client.GetMcpStatus() on a minimally-configured client send a
+// control request that the CLI never handshook - the request times out after
+// 5s with a cryptic error instead of working. Python's streaming mode always
+// initializes; Go must match.
+func TestNeedsProtocolHandshake_StreamingAlwaysInitializes(t *testing.T) {
+	tests := []struct {
+		name       string
+		closeStdin bool
+		options    *shared.Options
+		want       bool
+	}{
+		{
+			name:       "streaming_no_features",
+			closeStdin: false,
+			options:    &shared.Options{},
+			want:       true,
+		},
+		{
+			name:       "streaming_nil_options",
+			closeStdin: false,
+			options:    nil,
+			want:       true,
+		},
+		{
+			name:       "one_shot_no_features",
+			closeStdin: true,
+			options:    &shared.Options{},
+			want:       false,
+		},
+		{
+			name:       "one_shot_with_hooks",
+			closeStdin: true,
+			options:    &shared.Options{Hooks: struct{}{}},
+			want:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := &Transport{options: tt.options, closeStdin: tt.closeStdin}
+			if got := tr.needsProtocolHandshake(); got != tt.want {
+				t.Errorf("needsProtocolHandshake() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestTransportLifecycle tests connection lifecycle, state management, and reconnection
 func TestTransportLifecycle(t *testing.T) {
 	ctx, cancel := setupTransportTestContext(t, 10*time.Second)

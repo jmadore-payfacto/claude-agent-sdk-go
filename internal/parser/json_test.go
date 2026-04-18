@@ -1981,11 +1981,10 @@ func TestParseContentBlock_UnknownType_ReturnsRawContentBlock(t *testing.T) {
 	}
 }
 
-// TestParseAssistantMessage_ErrorObjectWithoutType verifies that an error field
-// that is an object but lacks the "type" key produces a non-nil Error rather
-// than being silently dropped. Without the fix, callers would receive a
-// successful AssistantMessage with Error == nil, hiding the fact that the CLI
-// reported an error.
+// TestParseAssistantMessage_ErrorObjectWithoutType verifies that an error
+// object lacking a "type" discriminator parses to AssistantMessageErrorUnknown,
+// not a raw JSON blob. Raw blobs would never match the typed constants that
+// helpers like IsRateLimited() compare against, defeating the typed-error API.
 func TestParseAssistantMessage_ErrorObjectWithoutType(t *testing.T) {
 	p := New()
 	input := `{"type":"assistant","error":{"message":"rate limited","code":429},"message":{"content":[],"model":"claude-test","role":"assistant"}}`
@@ -2003,13 +2002,12 @@ func TestParseAssistantMessage_ErrorObjectWithoutType(t *testing.T) {
 		return
 	}
 	if am.Error == nil {
-		t.Fatal("expected non-nil Error for object error without 'type', got nil (silent drop)")
+		t.Fatal("expected non-nil Error for object error without 'type', got nil")
 		return
 	}
-	// The exact value is implementation-defined; we only require it to be
-	// non-empty so callers can detect that an error was reported.
-	if string(*am.Error) == "" {
-		t.Error("expected non-empty Error string")
+	if *am.Error != shared.AssistantMessageErrorUnknown {
+		t.Errorf("expected Error == AssistantMessageErrorUnknown (%q), got %q",
+			shared.AssistantMessageErrorUnknown, *am.Error)
 	}
 }
 
