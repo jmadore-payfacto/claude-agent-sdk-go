@@ -219,6 +219,7 @@ func WithMaxBufferSize(size int) Option {
 }
 
 // WithMaxThinkingTokens sets the maximum thinking tokens.
+//
 // Deprecated: Use WithThinkingBudget instead for new code.
 func WithMaxThinkingTokens(tokens int) Option {
 	return func(o *Options) {

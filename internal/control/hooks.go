@@ -285,15 +285,15 @@ func getBool(m map[string]any, key string) bool {
 	return false
 }
 
-// getMap returns the map at key, or nil if absent or wrong type. Returning nil
-// preserves the absent-vs-empty distinction for hook input fields like
-// tool_input/tool_response — callers can still range over or index a nil map
-// safely; they just can't write to it (hook callbacks shouldn't anyway).
+// getMap returns the map at key, or an empty map if absent or wrong type.
+// Matches Python SDK behavior (hook inputs always receive a dict for fields
+// like tool_input) and avoids nil-map assignment panics in callbacks that
+// mutate the returned map.
 func getMap(m map[string]any, key string) map[string]any {
 	if v, ok := m[key].(map[string]any); ok {
 		return v
 	}
-	return nil
+	return make(map[string]any)
 }
 
 func getBoolPtr(m map[string]any, key string) *bool {

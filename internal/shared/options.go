@@ -159,7 +159,7 @@ func (ThinkingConfigAdaptive) thinkingConfig() {}
 // ThinkingConfigEnabled enables thinking with an explicit token budget.
 type ThinkingConfigEnabled struct {
 	// BudgetTokens is the maximum number of thinking tokens.
-	BudgetTokens int
+	BudgetTokens int `json:"budget_tokens"`
 }
 
 func (ThinkingConfigEnabled) thinkingConfig() {}
@@ -411,6 +411,11 @@ func (o *Options) Validate() error {
 	// Validate MaxThinkingTokens
 	if o.MaxThinkingTokens < 0 {
 		return fmt.Errorf("MaxThinkingTokens must be non-negative, got %d", o.MaxThinkingTokens)
+	}
+
+	// Validate ThinkingConfigEnabled.BudgetTokens when present.
+	if enabled, ok := o.Thinking.(ThinkingConfigEnabled); ok && enabled.BudgetTokens < 0 {
+		return fmt.Errorf("ThinkingConfigEnabled.BudgetTokens must be non-negative, got %d", enabled.BudgetTokens)
 	}
 
 	// Validate MaxTurns

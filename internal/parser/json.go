@@ -277,45 +277,55 @@ func (p *Parser) parseSystemMessage(data map[string]any) (*shared.SystemMessage,
 	}, nil
 }
 
+// parseResultRequiredFields populates the required fields on a ResultMessage.
+// Kept separate from parseResultMessage so that the latter's cyclomatic
+// complexity stays under the gocyclo threshold as optional fields grow.
+func parseResultRequiredFields(result *shared.ResultMessage, data map[string]any) error {
+	subtype, ok := data["subtype"].(string)
+	if !ok {
+		return shared.NewMessageParseError("result message missing subtype field", data)
+	}
+	result.Subtype = subtype
+
+	durationMS, ok := data["duration_ms"].(float64)
+	if !ok {
+		return shared.NewMessageParseError("result message missing or invalid duration_ms field", data)
+	}
+	result.DurationMs = int(durationMS)
+
+	durationAPIMS, ok := data["duration_api_ms"].(float64)
+	if !ok {
+		return shared.NewMessageParseError("result message missing or invalid duration_api_ms field", data)
+	}
+	result.DurationAPIMs = int(durationAPIMS)
+
+	isError, ok := data["is_error"].(bool)
+	if !ok {
+		return shared.NewMessageParseError("result message missing or invalid is_error field", data)
+	}
+	result.IsError = isError
+
+	numTurns, ok := data["num_turns"].(float64)
+	if !ok {
+		return shared.NewMessageParseError("result message missing or invalid num_turns field", data)
+	}
+	result.NumTurns = int(numTurns)
+
+	sessionID, ok := data["session_id"].(string)
+	if !ok {
+		return shared.NewMessageParseError("result message missing session_id field", data)
+	}
+	result.SessionID = sessionID
+
+	return nil
+}
+
 // parseResultMessage parses a result message from raw JSON data.
 func (p *Parser) parseResultMessage(data map[string]any) (*shared.ResultMessage, error) {
 	result := &shared.ResultMessage{}
 
-	// Required fields with validation
-	if subtype, ok := data["subtype"].(string); ok {
-		result.Subtype = subtype
-	} else {
-		return nil, shared.NewMessageParseError("result message missing subtype field", data)
-	}
-
-	if durationMS, ok := data["duration_ms"].(float64); ok {
-		result.DurationMs = int(durationMS)
-	} else {
-		return nil, shared.NewMessageParseError("result message missing or invalid duration_ms field", data)
-	}
-
-	if durationAPIMS, ok := data["duration_api_ms"].(float64); ok {
-		result.DurationAPIMs = int(durationAPIMS)
-	} else {
-		return nil, shared.NewMessageParseError("result message missing or invalid duration_api_ms field", data)
-	}
-
-	if isError, ok := data["is_error"].(bool); ok {
-		result.IsError = isError
-	} else {
-		return nil, shared.NewMessageParseError("result message missing or invalid is_error field", data)
-	}
-
-	if numTurns, ok := data["num_turns"].(float64); ok {
-		result.NumTurns = int(numTurns)
-	} else {
-		return nil, shared.NewMessageParseError("result message missing or invalid num_turns field", data)
-	}
-
-	if sessionID, ok := data["session_id"].(string); ok {
-		result.SessionID = sessionID
-	} else {
-		return nil, shared.NewMessageParseError("result message missing session_id field", data)
+	if err := parseResultRequiredFields(result, data); err != nil {
+		return nil, err
 	}
 
 	// Optional fields (no validation errors if missing)
