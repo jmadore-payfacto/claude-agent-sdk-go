@@ -43,6 +43,7 @@ subprocess/
 - Init error routing: `routeInitError()` in io.go detects error `ResultMessage` before `t.connected` is set and calls `protocol.HandleControlInitErr()`; `formatInitError()` builds error string with priority: `Errors` slice > `Result` field > `Subtype` fallback
 - Protocol options wiring: `buildProtocolOptions()` in config.go appends `control.WithOptions(t.options)` so agents flow through the Initialize handshake instead of via CLI flags
 - GetMcpStatus delegation: `Transport.GetMcpStatus()` in config.go delegates to `protocol.GetMcpStatus()`; only available in streaming mode (closeStdin == false)
+- MCP config cleanup: `cleanup()` in process.go calls `mcpConfigFile.Close()` then `os.Remove()`; Close() returns `os.ErrClosed` benignly because the file was already closed in `generateMcpConfigFile` after write/sync (retain *os.File only for Name()/Remove)
 
 <!-- END AUTO-MANAGED -->
 

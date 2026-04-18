@@ -29,7 +29,7 @@ cli/
 ## Module-Specific Conventions
 
 - Cross-platform support: Handle Windows vs Unix path differences
-- Version validation: Use semantic versioning comparison
+- Version validation: Use semantic versioning comparison; `MinimumCLIVersion = "2.0.76"` is the enforced minimum
 - Error handling: Return `CLINotFoundError` with installation instructions
 - Agents not in CLI flags: `addOptionsToCommand()` does NOT add `--agents`; agents are sent via the Initialize control protocol request instead
 

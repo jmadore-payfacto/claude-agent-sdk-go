@@ -45,11 +45,11 @@ make cyclo-check                  # Fail if complexity exceeds threshold (CI)
 make deadcode                     # Show unreachable internal functions
 make deadcode-check               # Fail if unreachable internal functions exist (CI)
 make fuzz-test                    # Verify fuzz corpus (fast, CI mode)
-make fmt-check                    # Verify code formatting
+make fmt-check                    # Verify formatting (scans only git-tracked .go files)
 make security                     # Run security vulnerability checks
 make sdk-test                     # Test SDK as consumer would use it
 make release-check                # Pre-release validation
-make ci                           # Run full CI pipeline locally (includes fuzz + deadcode)
+make ci                           # Run CI pipeline locally (deps-verify, test-race, check, examples, sdk-test, deadcode-check)
 ```
 
 <!-- END AUTO-MANAGED -->
@@ -135,6 +135,7 @@ make ci                           # Run full CI pipeline locally (includes fuzz 
 - **UserMessage optional fields**: `UUID *string` and `ParentToolUseID *string` are optional top-level fields on `shared.UserMessage` (Issue #24); both nil when absent, pointer values when present
 - **AssistantMessage.Error parsing**: `Error *string` field on `shared.AssistantMessage` is parsed from the top-level JSON object (not from nested `message` data); values: `AssistantMessageErrorRateLimit` ("rate_limit"), `AssistantMessageErrorAuthFailed` ("authentication_failed"), `AssistantMessageErrorUnknown` ("unknown") for unrecognized values; helpers: `HasError()`, `IsRateLimited()`; parser uses typed constants, never raw strings
 - **Mock transport functional options**: `clientMockTransport` in client_test.go uses `WithClientXxx()` functional options (e.g. `WithClientMcpStatus`, `WithClientMcpStatusError`) to configure per-test behavior; all mock state access protected by mutex
+- **Client.GetServerInfo**: `GetServerInfo(ctx context.Context) (map[string]interface{}, error)` on the Client interface returns server metadata; available in streaming mode after Connect()
 
 <!-- END AUTO-MANAGED -->
 
@@ -144,10 +145,10 @@ make ci                           # Run full CI pipeline locally (includes fuzz 
 - Conventional commit messages: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 - Issue references in commits: `(Issue #N)` or `(#N)`, use `Closes #N` in PR body
 - PR-based workflow with CI checks
-- Recent focus: Phase 1 parity complete via Go PR #117 - all 8 items ported (GetMcpStatus, PostToolUseFailure hook, AssistantMessage error fix, hook events, McpToolAnnotations, agents-in-initialize, ThinkingConfig, RawMessage/RawContentBlock); Phase 1 code review fixes landed (dead code removal: WithTransport Option, HookRegistration, generateHookRegistrations; bug fixes: MCP config FD leak, permission callback type mismatch now errors loudly, unknown control subtypes send error response, AgentDefinition.Model validation in Options.Validate()); Phase 1 review follow-up (feature/phase1-parser-fixes): M1 fix - ThinkingConfig variants now emit Python-SDK "type" discriminator via MarshalJSON; M2 fix - UpdatedMCPToolOutput zero-scalar foot-gun documented; minor: AssistantMessageErrorUnknown constant in parser, OutputFormatTypeJSONSchema re-exported in types.go, SA1019 nolint on MaxThinkingTokens legacy paths; next up: Phase 2 items #9-#20
+- Recent focus: Phase 1 parity complete via Go PR #117 - all 8 items ported (GetMcpStatus, PostToolUseFailure hook, AssistantMessage error fix, hook events, McpToolAnnotations, agents-in-initialize, ThinkingConfig, RawMessage/RawContentBlock); Phase 1 code review fixes landed (dead code removal: WithTransport Option, HookRegistration, generateHookRegistrations; bug fixes: MCP config FD leak, permission callback type mismatch now errors loudly, unknown control subtypes send error response, AgentDefinition.Model validation in Options.Validate()); Phase 1 review follow-up (feature/phase1-parser-fixes) complete: M1 fix - ThinkingConfig variants now emit Python-SDK "type" discriminator via MarshalJSON; M2 fix - UpdatedMCPToolOutput zero-scalar foot-gun documented; minor: AssistantMessageErrorUnknown constant in parser, OutputFormatTypeJSONSchema re-exported in types.go, SA1019 nolint on MaxThinkingTokens legacy paths; next up: Phase 2 items #9-#20
 - Benchmark organization: Table-driven benchmarks across all core modules (options, parser, shared, control, cli)
-- Makefile integration: All code quality checks (fmt, vet, lint, cyclo, deadcode, fuzz-test) unified under `make check`; `make ci` runs full pipeline including fuzz corpus verification and deadcode enforcement
-- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); Phase 1 complete via Go PR #117 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598); last ported features: Phase 1 items #1-#8 (Go PR #117), errors field on ResultMessage (Go PR #114, Python PR #749)
+- Makefile integration: All code quality checks (fmt, vet, lint, cyclo, deadcode, fuzz-test) unified under `make check`; `make ci` runs deps-verify + test-race + check + examples + sdk-test + deadcode-check; `fmt-check` scans only git-tracked .go files via `git ls-files`
+- Python SDK parity tracking: `docs/tracking/README.md` tracks all Python SDK PRs to port; organized into 4 chronological phases (Phase 1: Jan 26-Feb 20, Phase 2: Mar 3-Mar 16, Phase 3: Mar 20-Mar 30, Phase 4: Mar 31-Apr 8); Phase 1 complete via Go PR #117 (Python PRs #516,#535,#506,#545,#551,#468,#565,#598); last ported features: Phase 1 items #1-#8 (Go PR #117), errors field on ResultMessage (Go PR #114, Python PR #749); Phase 2-4 items #9-#48 all pending; notable upcoming: stop_reason on ResultMessage (#9), ReconnectMcpServer/ToggleMcpServer (#10), PermissionModeDontAsk (#25), PermissionModeAuto (#46), session_id option (#37), disallowedTools/maxTurns/initialPrompt on AgentDefinition (#36), background/effort/permissionMode on AgentDefinition (#44)
 
 <!-- END AUTO-MANAGED -->
 
