@@ -132,6 +132,11 @@ func (t *Transport) SetPermissionMode(ctx context.Context, mode string) error {
 
 // GetMcpStatus returns the current status of all connected MCP servers.
 // Only available in streaming mode (when closeStdin is false).
+//
+// The control protocol is initialized lazily on first call so callers get
+// MCP status even when no up-front feature (hooks/permissions/MCP/agents)
+// triggered the handshake. Without lazy init, the control request would be
+// sent to a CLI that never entered protocol mode and time out after 5s.
 func (t *Transport) GetMcpStatus(ctx context.Context) (*control.McpStatusResponse, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -140,12 +145,8 @@ func (t *Transport) GetMcpStatus(ctx context.Context) (*control.McpStatusRespons
 		return nil, fmt.Errorf("transport not connected")
 	}
 
-	if t.closeStdin {
-		return nil, fmt.Errorf("GetMcpStatus not available in one-shot mode")
-	}
-
-	if t.protocol == nil {
-		return nil, fmt.Errorf("control protocol not initialized")
+	if err := t.ensureProtocolInitialized(ctx); err != nil {
+		return nil, fmt.Errorf("GetMcpStatus: %w", err)
 	}
 
 	return t.protocol.GetMcpStatus(ctx)

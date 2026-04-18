@@ -261,17 +261,17 @@ func addSessionFlags(cmd []string, options *shared.Options) []string {
 	if options.ForkSession {
 		cmd = append(cmd, "--fork-session")
 	}
-	// Always pass --setting-sources (Python SDK parity)
-	// Empty slice results in empty string value
-	sourcesValue := ""
-	if len(options.SettingSources) > 0 {
+	// Emit --setting-sources only when SettingSources is non-nil, matching
+	// Python's "if effective_setting_sources is not None" guard (PR #778).
+	// A nil slice means "use CLI default"; an empty slice means "load nothing"
+	// and must still emit --setting-sources= so the CLI honors the override.
+	if options.SettingSources != nil {
 		strs := make([]string, len(options.SettingSources))
 		for i, s := range options.SettingSources {
 			strs[i] = string(s)
 		}
-		sourcesValue = strings.Join(strs, ",")
+		cmd = append(cmd, "--setting-sources", strings.Join(strs, ","))
 	}
-	cmd = append(cmd, "--setting-sources", sourcesValue)
 	if options.IncludePartialMessages {
 		cmd = append(cmd, "--include-partial-messages")
 	}

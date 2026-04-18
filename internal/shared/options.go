@@ -485,16 +485,12 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("OutputFormat.Type must be %q, got %q", OutputFormatTypeJSONSchema, o.OutputFormat.Type)
 	}
 
-	// Validate AgentDefinition.Model values: empty (== inherit) or one of the
-	// known constants. Catches typos before they reach the CLI.
-	for name, agent := range o.Agents {
-		switch agent.Model {
-		case "", AgentModelSonnet, AgentModelOpus, AgentModelHaiku, AgentModelInherit:
-			// valid
-		default:
-			return fmt.Errorf("agent %q has invalid Model %q (must be sonnet, opus, haiku, inherit, or empty)", name, agent.Model)
-		}
-	}
+	// AgentDefinition.Model is intentionally not validated beyond string type:
+	// Python's AgentDefinition documents Model as "alias or full model ID" and
+	// performs no validation, so rejecting strings the Python SDK accepts
+	// would break parity and prevent callers from pinning specific versions
+	// (e.g. "claude-opus-4-7"). The CLI is the source of truth for which
+	// model IDs resolve; let it surface unknown values.
 
 	return nil
 }

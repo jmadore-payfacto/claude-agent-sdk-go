@@ -22,10 +22,19 @@ func (p *Protocol) handleCanUseToolRequest(ctx context.Context, requestID string
 		input = make(map[string]any)
 	}
 
-	// Parse suggestions from context
+	// Parse context fields from request. tool_use_id and agent_id are
+	// populated by the CLI on every can_use_tool request (Python PR #754);
+	// forwarding them lets callbacks distinguish concurrent tool calls and
+	// attribute requests to the originating subagent.
 	var permCtx ToolPermissionContext
 	if suggestions, ok := request["permission_suggestions"].([]any); ok {
 		permCtx.Suggestions = parsePermissionSuggestions(suggestions)
+	}
+	if s, ok := request["tool_use_id"].(string); ok && s != "" {
+		permCtx.ToolUseID = &s
+	}
+	if s, ok := request["agent_id"].(string); ok && s != "" {
+		permCtx.AgentID = &s
 	}
 
 	// Get callback (thread-safe read)

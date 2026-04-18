@@ -20,53 +20,32 @@ const (
 	testModelName    = "claude-sonnet-4-5"
 )
 
-// TestNeedsProtocolHandshake_StreamingAlwaysInitializes verifies that the
-// control protocol handshake is performed for every streaming-mode client,
-// not only when hooks/permissions/MCP/agents are configured. Without this,
-// calls like Client.GetMcpStatus() on a minimally-configured client send a
-// control request that the CLI never handshook - the request times out after
-// 5s with a cryptic error instead of working. Python's streaming mode always
-// initializes; Go must match.
-func TestNeedsProtocolHandshake_StreamingAlwaysInitializes(t *testing.T) {
-	tests := []struct {
-		name       string
-		closeStdin bool
-		options    *shared.Options
-		want       bool
-	}{
-		{
-			name:       "streaming_no_features",
-			closeStdin: false,
-			options:    &shared.Options{},
-			want:       true,
-		},
-		{
-			name:       "streaming_nil_options",
-			closeStdin: false,
-			options:    nil,
-			want:       true,
-		},
-		{
-			name:       "one_shot_no_features",
-			closeStdin: true,
-			options:    &shared.Options{},
-			want:       false,
-		},
-		{
-			name:       "one_shot_with_hooks",
-			closeStdin: true,
-			options:    &shared.Options{Hooks: struct{}{}},
-			want:       true,
-		},
+// TestEnsureProtocolInitialized_OneShotRejected verifies the lazy-init path
+// refuses to run in one-shot mode. This guards GetMcpStatus (and any future
+// on-demand control-protocol method) from attempting a handshake against a
+// subprocess whose stdin has already been closed.
+func TestEnsureProtocolInitialized_OneShotRejected(t *testing.T) {
+	tr := &Transport{closeStdin: true}
+	err := tr.ensureProtocolInitialized(context.Background())
+	if err == nil {
+		t.Fatal("expected error for one-shot mode, got nil")
 	}
+	if !strings.Contains(err.Error(), "one-shot") {
+		t.Errorf("error should mention one-shot mode, got: %v", err)
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tr := &Transport{options: tt.options, closeStdin: tt.closeStdin}
-			if got := tr.needsProtocolHandshake(); got != tt.want {
-				t.Errorf("needsProtocolHandshake() = %v, want %v", got, tt.want)
-			}
-		})
+// TestEnsureProtocolInitialized_NoProtocolStarted verifies lazy-init returns
+// a clear error rather than panicking when the protocol struct is nil
+// (e.g. called before Connect).
+func TestEnsureProtocolInitialized_NoProtocolStarted(t *testing.T) {
+	tr := &Transport{closeStdin: false, protocol: nil}
+	err := tr.ensureProtocolInitialized(context.Background())
+	if err == nil {
+		t.Fatal("expected error when protocol is nil, got nil")
+	}
+	if !strings.Contains(err.Error(), "not started") {
+		t.Errorf("error should mention protocol not started, got: %v", err)
 	}
 }
 

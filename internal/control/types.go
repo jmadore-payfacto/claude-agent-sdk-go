@@ -265,6 +265,14 @@ type ToolPermissionContext struct {
 	Signal any `json:"-"`
 	// Suggestions contains permission suggestions from CLI.
 	Suggestions []PermissionUpdate `json:"suggestions,omitempty"`
+	// ToolUseID identifies which tool call triggered this permission request.
+	// Distinct tool_use_ids let callbacks disambiguate multiple concurrent
+	// tool calls within the same assistant message. Nil when the CLI did not
+	// supply one (older CLI versions).
+	ToolUseID *string `json:"tool_use_id,omitempty"`
+	// AgentID identifies the subagent that triggered the permission request,
+	// or nil when the main agent triggered it.
+	AgentID *string `json:"agent_id,omitempty"`
 }
 
 // PermissionResult is the interface for permission callback results.

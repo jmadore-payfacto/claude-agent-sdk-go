@@ -241,22 +241,14 @@ func (p *Parser) parseAssistantMessage(data map[string]any) (*shared.AssistantMe
 	var errorPtr *shared.AssistantMessageError
 	if errObj, ok := data["error"].(map[string]any); ok {
 		// Error is an object; prefer the "type" discriminator when present.
+		// Objects without a "type" field collapse to the Unknown sentinel so
+		// callers always compare against typed AssistantMessageError constants
+		// (IsRateLimited() and friends never match raw JSON blobs).
 		if errType, ok := errObj["type"].(string); ok && errType != "" {
 			errVal := shared.AssistantMessageError(errType)
 			errorPtr = &errVal
 		} else {
-			// Object without a "type" field: fall back to the raw JSON
-			// representation so callers see that an error was reported
-			// rather than receiving a silent nil. If marshal fails (rare,
-			// since errObj came from json.Unmarshal so is serializable in
-			// practice), surface a sentinel so callers still observe that
-			// an error was present.
-			var errVal shared.AssistantMessageError
-			if raw, err := json.Marshal(errObj); err == nil {
-				errVal = shared.AssistantMessageError(string(raw))
-			} else {
-				errVal = shared.AssistantMessageErrorUnknown
-			}
+			errVal := shared.AssistantMessageErrorUnknown
 			errorPtr = &errVal
 		}
 	} else if errorStr, ok := data["error"].(string); ok {
