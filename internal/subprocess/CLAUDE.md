@@ -44,6 +44,8 @@ subprocess/
 - Protocol options wiring: `buildProtocolOptions()` in config.go appends `control.WithOptions(t.options)` so agents flow through the Initialize handshake instead of via CLI flags
 - GetMcpStatus delegation: `Transport.GetMcpStatus()` in config.go delegates to `protocol.GetMcpStatus()`; only available in streaming mode (closeStdin == false)
 - MCP config cleanup: `cleanup()` in process.go calls `mcpConfigFile.Close()` then `os.Remove()`; Close() returns `os.ErrClosed` benignly because the file was already closed in `generateMcpConfigFile` after write/sync (retain *os.File only for Name()/Remove)
+- ensureProtocolInitialized lazy-init: `Transport.ensureProtocolInitialized(ctx)` in transport.go performs control protocol handshake on demand; returns error immediately for one-shot mode ("control protocol not available in one-shot mode") or nil protocol ("not started"); used by GetMcpStatus so callers don't need up-front feature flags to trigger init
+- ReceiveMessages disconnected behavior: returns two closed channels immediately when transport is not connected; callers can range or select on them safely; multiple calls return distinct channel instances all exhibiting the same closed behavior
 
 <!-- END AUTO-MANAGED -->
 

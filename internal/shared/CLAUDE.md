@@ -55,7 +55,7 @@ shared/
 - Type discrimination: Switch on `"type"` field for union types
 - Error wrapping: Use `%w` verb for error chain support
 - Sealed union pattern: Unexported marker method (e.g. `thinkingConfig()`) prevents external implementations of union interfaces like `ThinkingConfig`
-- Options validation: `Options.Validate()` enforces field constraints (AgentDefinition.Model must be sonnet/opus/haiku/inherit/empty; ThinkingConfigEnabled.BudgetTokens must be non-negative)
+- Options validation: `Options.Validate()` enforces field constraints (MaxThinkingTokens/MaxTurns non-negative, no tool conflicts, OutputFormat.Type must be "json_schema" if set, ThinkingConfigEnabled.BudgetTokens non-negative); AgentDefinition.Model is intentionally not validated - Python SDK accepts alias or full model ID without restriction, so Go SDK defers to CLI as source of truth
 
 <!-- END AUTO-MANAGED -->
 
