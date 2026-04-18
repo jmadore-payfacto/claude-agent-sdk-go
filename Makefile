@@ -199,7 +199,7 @@ release-dry: ## Dry run release
 	goreleaser release --snapshot --clean --skip-publish
 
 ## CI/CD helpers
-ci: deps-verify test-race check examples sdk-test fuzz-test deadcode-check ## Run CI pipeline locally (includes fuzz + deadcode)
+ci: deps-verify test-race check examples sdk-test deadcode-check ## Run CI pipeline locally (fuzz + deadcode covered by check)
 
 ci-coverage: ## Run CI with coverage
 	$(GOTEST) -race -coverprofile=coverage.out ./...

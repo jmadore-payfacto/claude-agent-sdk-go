@@ -3,6 +3,7 @@ package claudecode
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 
@@ -373,7 +374,10 @@ func (c *ClientImpl) QueryStream(ctx context.Context, messages <-chan StreamMess
 					return // Channel closed
 				}
 				if err := transport.SendMessage(ctx, msg); err != nil {
-					// Log error but continue processing
+					// Streaming sends have no caller-visible return path; log
+					// so the failure is at least observable. Exit the goroutine
+					// because subsequent sends on a broken transport will fail.
+					log.Printf("claude-sdk: QueryStream SendMessage failed: %v", err)
 					return
 				}
 			case <-ctx.Done():

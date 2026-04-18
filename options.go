@@ -3,6 +3,7 @@ package claudecode
 import (
 	"context"
 	"io"
+	"log"
 	"os"
 
 	"github.com/severity1/claude-agent-sdk-go/internal/control"
@@ -671,9 +672,14 @@ func WithCanUseTool(callback CanUseToolCallback) Option {
 			input map[string]any,
 			permCtx any,
 		) (any, error) {
-			// Convert permCtx back to strongly-typed ToolPermissionContext
+			// Convert permCtx back to strongly-typed ToolPermissionContext.
+			// If the cast fails it means a caller populated Options.CanUseTool
+			// with a non-standard wrapper (bypassing WithCanUseTool). Fall back
+			// to an empty context so the callback still runs, but log so the
+			// misuse is at least observable in practice.
 			tpc, ok := permCtx.(control.ToolPermissionContext)
 			if !ok {
+				log.Printf("claude-sdk: WithCanUseTool received permCtx of type %T; expected control.ToolPermissionContext - using empty context", permCtx)
 				tpc = control.ToolPermissionContext{}
 			}
 			return callback(ctx, toolName, input, tpc)

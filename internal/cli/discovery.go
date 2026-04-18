@@ -211,7 +211,9 @@ func addModelAndPromptFlags(cmd []string, options *shared.Options) []string {
 	if options.MaxBudgetUSD != nil {
 		cmd = append(cmd, "--max-budget-usd", fmt.Sprintf("%.2f", *options.MaxBudgetUSD))
 	}
-	// Handle ThinkingConfig (takes precedence over MaxThinkingTokens when set)
+	// Handle ThinkingConfig (takes precedence over MaxThinkingTokens when set).
+	// "enabled" maps to --max-thinking-tokens (not --thinking enabled) to match
+	// the Python SDK wire format in subprocess_cli.py.
 	if options.Thinking != nil {
 		switch t := options.Thinking.(type) {
 		case shared.ThinkingConfigAdaptive:

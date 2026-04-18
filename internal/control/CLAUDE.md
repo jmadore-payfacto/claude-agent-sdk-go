@@ -43,6 +43,7 @@ control/
 - Hook registration: `RegisterHook()` returns callback ID for later removal
 - Init error channel: `initErrChan chan error` (buffered, size 1) in Protocol struct; `HandleControlInitErr()` sends non-blocking to unblock `SendControlRequest()` when CLI fails before handshake (e.g., invalid session ID)
 - getMap helper: returns `make(map[string]any)` (empty map, never nil) when key absent or wrong type; matches Python SDK behavior where hook inputs always receive a dict for fields like tool_input; prevents nil-map assignment panics in callbacks that mutate the returned map
+- getSlice helper: returns `nil` (not an empty slice) when key absent or wrong type; asymmetric with getMap on purpose - nil slices are range-safe and `len()`-safe in Go so no panic risk, and callers that check `len(...) > 0` behave correctly; used for `PermissionRequestHookInput.PermissionSuggestions`
 - Agents-in-initialize: `WithOptions()` ProtocolOption stores `shared.Options` on Protocol; `Initialize()` reads `options.Agents` and builds `InitializeRequest.Agents` map (description/prompt/tools/model per agent)
 - GetMcpStatus: sends `GetMcpStatusRequest{SubtypeGetMcpStatus}` with 5s timeout; response re-marshaled from `map[string]any` to typed `*McpStatusResponse{McpServers []McpServerStatus}`
 - McpToolInfo vs McpToolDefinition: `McpToolInfo` (types.go) used only in status responses; `shared.McpToolDefinition` used for SDK MCP server tool definitions - not interchangeable

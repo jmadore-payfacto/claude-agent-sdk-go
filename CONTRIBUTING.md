@@ -36,7 +36,7 @@ deadcode -test=true \         # Find unreachable internal functions
   ./examples/... ./internal/...
 
 # Or use Makefile (recommended)
-make check             # Run all checks (fmt, vet, lint, cyclo, deadcode)
+make check             # Run all checks (fmt, vet, lint, cyclo, deadcode, fuzz-test)
 ```
 
 ### Cyclomatic Complexity
