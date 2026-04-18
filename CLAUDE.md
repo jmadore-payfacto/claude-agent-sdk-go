@@ -122,8 +122,12 @@ make ci                           # Run full CI pipeline locally (includes fuzz 
 - **AgentDefinition.Model validation**: Options.Validate() checks agent model values (must be sonnet/opus/haiku/inherit/empty) to catch typos before they reach the CLI
 - **MCP config file FD**: temp file is closed immediately after write/sync; CLI reads by path; keeping handle open leaked FD for subprocess lifetime and blocked file open on Windows
 - **GetMcpStatus flow**: `Client.GetMcpStatus()` -> `subprocess.Transport.GetMcpStatus()` -> `control.Protocol.GetMcpStatus()` -> `GetMcpStatusRequest{SubtypeGetMcpStatus}` -> CLI; response marshal/unmarshal to `*McpStatusResponse{McpServers []McpServerStatus}`; connection status values: connected/failed/needs-auth/pending/disabled
+- **McpServerStatus.Config field**: `map[string]any` preserving wire-format server configuration (URL for HTTP/SSE servers, type/name for SDK servers); mirrors Python SDK McpServerStatusConfig union (Python PR #516); typed union deferred to a later parity phase
 - **Agents-in-initialize**: Agents sent via `InitializeRequest.Agents` (not `--agents` CLI flag); `WithOptions()` ProtocolOption passes `shared.Options` to Protocol; Initialize() builds agents map with description/prompt/tools/model fields per agent
 - **McpToolInfo vs McpToolDefinition**: `McpToolInfo` (control/types.go) reports tools from connected servers in status responses; `shared.McpToolDefinition` defines tools for SDK MCP servers - these are distinct types for distinct purposes
+- **UserMessage optional fields**: `UUID *string` and `ParentToolUseID *string` are optional top-level fields on `shared.UserMessage` (Issue #24); both nil when absent, pointer values when present
+- **AssistantMessage.Error parsing**: `Error *string` field on `shared.AssistantMessage` is parsed from the top-level JSON object (not from nested `message` data); values: `AssistantMessageErrorRateLimit` ("rate_limit"), `AssistantMessageErrorAuthFailed` ("authentication_failed"); helpers: `HasError()`, `IsRateLimited()`
+- **Mock transport functional options**: `clientMockTransport` in client_test.go uses `WithClientXxx()` functional options (e.g. `WithClientMcpStatus`, `WithClientMcpStatusError`) to configure per-test behavior; all mock state access protected by mutex
 
 <!-- END AUTO-MANAGED -->
 
