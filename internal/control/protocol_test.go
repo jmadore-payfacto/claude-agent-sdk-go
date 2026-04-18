@@ -2594,11 +2594,11 @@ func TestPermissionContext_ToolUseIDAndAgentID(t *testing.T) {
 		"type":       MessageTypeControlRequest,
 		"request_id": "req_ctx_1",
 		"request": map[string]any{
-			"subtype":      SubtypeCanUseTool,
-			"tool_name":    "Read",
-			"input":        map[string]any{"file_path": "/tmp/x"},
-			"tool_use_id":  "toolu_01ABCDEF",
-			"agent_id":     "agent_42",
+			"subtype":     SubtypeCanUseTool,
+			"tool_name":   "Read",
+			"input":       map[string]any{"file_path": "/tmp/x"},
+			"tool_use_id": "toolu_01ABCDEF",
+			"agent_id":    "agent_42",
 		},
 	}
 
