@@ -30,6 +30,13 @@ func New() *Parser {
 	}
 }
 
+// NewWithSize creates a new JSON parser with a custom maximum buffer size.
+func NewWithSize(maxBufferSize int) *Parser {
+	return &Parser{
+		maxBufferSize: maxBufferSize,
+	}
+}
+
 // ProcessLine processes a line of JSON input with speculative parsing.
 // Handles multiple JSON objects on single line and embedded newlines.
 func (p *Parser) ProcessLine(line string) ([]shared.Message, error) {
@@ -257,10 +264,19 @@ func (p *Parser) parseAssistantMessage(data map[string]any) (*shared.AssistantMe
 		errorPtr = &errVal
 	}
 
+	// parent_tool_use_id is set on assistant messages produced inside a subagent
+	// (Agent/Task tool). Lives at the top-level of the raw event, matching the
+	// Python SDK and the user-message parsing above.
+	var parentToolUseID *string
+	if ptid, ok := data["parent_tool_use_id"].(string); ok {
+		parentToolUseID = &ptid
+	}
+
 	return &shared.AssistantMessage{
-		Content: blocks,
-		Model:   model,
-		Error:   errorPtr,
+		Content:         blocks,
+		Model:           model,
+		Error:           errorPtr,
+		ParentToolUseID: parentToolUseID,
 	}, nil
 }
 
