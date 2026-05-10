@@ -31,6 +31,9 @@ const (
 type AssistantMessageError string
 
 // AssistantMessageError constants for error type identification.
+// Matches Python SDK Literal values from types.py (AssistantMessageError):
+// authentication_failed, billing_error, rate_limit, invalid_request,
+// server_error, unknown.
 const (
 	AssistantMessageErrorAuthFailed     AssistantMessageError = "authentication_failed"
 	AssistantMessageErrorBilling        AssistantMessageError = "billing_error"

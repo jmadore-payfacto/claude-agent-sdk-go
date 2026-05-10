@@ -106,7 +106,7 @@ func (t *Transport) SetModel(ctx context.Context, model *string) error {
 // SetPermissionMode changes the permission mode during a streaming session.
 // This method requires control protocol integration which is only available
 // in streaming mode (when closeStdin is false).
-func (t *Transport) SetPermissionMode(ctx context.Context, mode string) error {
+func (t *Transport) SetPermissionMode(ctx context.Context, mode shared.PermissionMode) error {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -124,7 +124,7 @@ func (t *Transport) SetPermissionMode(ctx context.Context, mode string) error {
 		return fmt.Errorf("control protocol not initialized")
 	}
 
-	return t.protocol.SetPermissionMode(ctx, mode)
+	return t.protocol.SetPermissionMode(ctx, string(mode))
 }
 
 // RewindFiles reverts tracked files to their state at a specific user message.
@@ -150,6 +150,28 @@ func (t *Transport) RewindFiles(ctx context.Context, userMessageID string) error
 	}
 
 	return t.protocol.RewindFiles(ctx, userMessageID)
+}
+
+// GetMcpStatus returns the connection status of all configured MCP servers.
+// This method requires control protocol integration which is only available
+// in streaming mode (when closeStdin is false).
+func (t *Transport) GetMcpStatus(ctx context.Context) (*control.McpStatusResponse, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if !t.connected {
+		return nil, fmt.Errorf("transport not connected")
+	}
+
+	if t.closeStdin {
+		return nil, fmt.Errorf("GetMcpStatus not available in one-shot mode")
+	}
+
+	if t.protocol == nil {
+		return nil, fmt.Errorf("internal error: transport connected but control protocol is nil")
+	}
+
+	return t.protocol.GetMcpStatus(ctx)
 }
 
 // buildProtocolOptions constructs control protocol options from transport configuration.
@@ -181,6 +203,7 @@ func (t *Transport) buildProtocolOptions() []control.ProtocolOption {
 				}
 
 				// Fallback: deny if result type is unexpected
+				fmt.Fprintf(os.Stderr, "claude-agent-sdk: CanUseTool callback returned unexpected type %T, denying\n", result)
 				return control.NewPermissionResultDeny("invalid permission result type"), nil
 			}))
 	}
@@ -190,6 +213,8 @@ func (t *Transport) buildProtocolOptions() []control.ProtocolOption {
 		// Convert from any to strongly-typed hooks map
 		if hooks, ok := t.options.Hooks.(map[control.HookEvent][]control.HookMatcher); ok {
 			opts = append(opts, control.WithHooks(hooks))
+		} else {
+			fmt.Fprintf(os.Stderr, "claude-agent-sdk: Hooks option has unexpected type %T, hooks will not be registered\n", t.options.Hooks)
 		}
 	}
 
