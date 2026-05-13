@@ -28,6 +28,15 @@ const (
 	HookEventSubagentStop HookEvent = "SubagentStop"
 	// HookEventPreCompact is triggered before context compaction.
 	HookEventPreCompact HookEvent = "PreCompact"
+	// HookEventNotification is triggered when the CLI emits a notification.
+	// Added in Python SDK PR #545.
+	HookEventNotification HookEvent = "Notification"
+	// HookEventSubagentStart is triggered when a subagent starts.
+	// Added in Python SDK PR #545.
+	HookEventSubagentStart HookEvent = "SubagentStart"
+	// HookEventPermissionRequest is triggered when a permission is requested.
+	// Added in Python SDK PR #545.
+	HookEventPermissionRequest HookEvent = "PermissionRequest"
 )
 
 // =============================================================================
@@ -57,6 +66,8 @@ type PreToolUseHookInput struct {
 	ToolName string `json:"tool_name"`
 	// ToolInput contains the tool's input parameters.
 	ToolInput map[string]any `json:"tool_input"`
+	// ToolUseID identifies the tool invocation. Added in Python SDK PR #545.
+	ToolUseID string `json:"tool_use_id"`
 }
 
 // PostToolUseHookInput is the input for PostToolUse hook events.
@@ -71,6 +82,8 @@ type PostToolUseHookInput struct {
 	ToolInput map[string]any `json:"tool_input"`
 	// ToolResponse contains the tool's output.
 	ToolResponse any `json:"tool_response"`
+	// ToolUseID identifies the tool invocation. Added in Python SDK PR #545.
+	ToolUseID string `json:"tool_use_id"`
 }
 
 // PostToolUseFailureHookInput is the input for PostToolUseFailure hook events.
@@ -117,12 +130,21 @@ type StopHookInput struct {
 
 // SubagentStopHookInput is the input for SubagentStop hook events.
 // Matches Python SDK's SubagentStopHookInput TypedDict.
+// AgentID/AgentTranscriptPath/AgentType were added as flat required fields
+// in Python SDK PR #545 (not via the _SubagentContextMixin, which lands
+// separately in Python SDK PR #628 / Phase 2 item #13).
 type SubagentStopHookInput struct {
 	BaseHookInput
 	// HookEventName is always "SubagentStop".
 	HookEventName string `json:"hook_event_name"`
 	// StopHookActive indicates if the stop hook is currently active.
 	StopHookActive bool `json:"stop_hook_active"`
+	// AgentID is the correlation key for the stopping subagent.
+	AgentID string `json:"agent_id"`
+	// AgentTranscriptPath is the path to the subagent's transcript.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
+	// AgentType is the subagent type (e.g. "researcher").
+	AgentType string `json:"agent_type"`
 }
 
 // PreCompactHookInput is the input for PreCompact hook events.
@@ -135,6 +157,49 @@ type PreCompactHookInput struct {
 	Trigger string `json:"trigger"`
 	// CustomInstructions contains custom compaction instructions (optional).
 	CustomInstructions *string `json:"custom_instructions,omitempty"`
+}
+
+// NotificationHookInput is the input for Notification hook events.
+// Matches Python SDK's NotificationHookInput TypedDict (PR #545).
+type NotificationHookInput struct {
+	BaseHookInput
+	// HookEventName is always "Notification".
+	HookEventName string `json:"hook_event_name"`
+	// Message is the notification body.
+	Message string `json:"message"`
+	// Title is the optional notification title.
+	// Optional; nil maps to Python's NotRequired[str] absent state.
+	Title *string `json:"title,omitempty"`
+	// NotificationType classifies the notification (e.g. "permission_request").
+	NotificationType string `json:"notification_type"`
+}
+
+// SubagentStartHookInput is the input for SubagentStart hook events.
+// Matches Python SDK's SubagentStartHookInput TypedDict (PR #545).
+type SubagentStartHookInput struct {
+	BaseHookInput
+	// HookEventName is always "SubagentStart".
+	HookEventName string `json:"hook_event_name"`
+	// AgentID is the correlation key for the starting subagent.
+	AgentID string `json:"agent_id"`
+	// AgentType is the subagent type (e.g. "researcher").
+	AgentType string `json:"agent_type"`
+}
+
+// PermissionRequestHookInput is the input for PermissionRequest hook events.
+// Matches Python SDK's PermissionRequestHookInput TypedDict (PR #545).
+type PermissionRequestHookInput struct {
+	BaseHookInput
+	// HookEventName is always "PermissionRequest".
+	HookEventName string `json:"hook_event_name"`
+	// ToolName is the name of the tool requesting permission.
+	ToolName string `json:"tool_name"`
+	// ToolInput contains the tool's input parameters.
+	ToolInput map[string]any `json:"tool_input"`
+	// PermissionSuggestions carries CLI-provided permission suggestions.
+	// Typed as []any to mirror Python's list[Any] literal type; nil maps
+	// to Python's NotRequired absent state.
+	PermissionSuggestions []any `json:"permission_suggestions,omitempty"`
 }
 
 // =============================================================================
@@ -152,6 +217,9 @@ type PreToolUseHookSpecificOutput struct {
 	PermissionDecisionReason *string `json:"permissionDecisionReason,omitempty"`
 	// UpdatedInput contains modified tool input (optional).
 	UpdatedInput map[string]any `json:"updatedInput,omitempty"`
+	// AdditionalContext provides extra context for Claude.
+	// Added in Python SDK PR #545.
+	AdditionalContext *string `json:"additionalContext,omitempty"`
 }
 
 // PostToolUseHookSpecificOutput contains PostToolUse-specific output fields.
@@ -161,6 +229,11 @@ type PostToolUseHookSpecificOutput struct {
 	HookEventName string `json:"hookEventName"`
 	// AdditionalContext provides extra context for Claude.
 	AdditionalContext *string `json:"additionalContext,omitempty"`
+	// UpdatedMCPToolOutput allows the hook to replace the tool output
+	// reported back to Claude. Added in Python SDK PR #545.
+	// Go field uses Go-idiomatic acronym casing (MCP) while wire format
+	// preserves Python's camelCase exactly.
+	UpdatedMCPToolOutput any `json:"updatedMCPToolOutput,omitempty"`
 }
 
 // PostToolUseFailureHookSpecificOutput contains PostToolUseFailure-specific output fields.
@@ -180,6 +253,34 @@ type UserPromptSubmitHookSpecificOutput struct {
 	HookEventName string `json:"hookEventName"`
 	// AdditionalContext provides extra context for Claude.
 	AdditionalContext *string `json:"additionalContext,omitempty"`
+}
+
+// NotificationHookSpecificOutput contains Notification-specific output fields.
+// Matches Python SDK's NotificationHookSpecificOutput TypedDict (PR #545).
+type NotificationHookSpecificOutput struct {
+	// HookEventName is always "Notification".
+	HookEventName string `json:"hookEventName"`
+	// AdditionalContext provides extra context for Claude.
+	AdditionalContext *string `json:"additionalContext,omitempty"`
+}
+
+// SubagentStartHookSpecificOutput contains SubagentStart-specific output fields.
+// Matches Python SDK's SubagentStartHookSpecificOutput TypedDict (PR #545).
+type SubagentStartHookSpecificOutput struct {
+	// HookEventName is always "SubagentStart".
+	HookEventName string `json:"hookEventName"`
+	// AdditionalContext provides extra context for Claude.
+	AdditionalContext *string `json:"additionalContext,omitempty"`
+}
+
+// PermissionRequestHookSpecificOutput contains PermissionRequest-specific output fields.
+// Matches Python SDK's PermissionRequestHookSpecificOutput TypedDict (PR #545).
+// Decision is required (not omitempty) to mirror Python's required dict.
+type PermissionRequestHookSpecificOutput struct {
+	// HookEventName is always "PermissionRequest".
+	HookEventName string `json:"hookEventName"`
+	// Decision conveys the permission decision back to the CLI.
+	Decision map[string]any `json:"decision"`
 }
 
 // =============================================================================

@@ -674,6 +674,12 @@ const (
 	HookEventSubagentStop = control.HookEventSubagentStop
 	// HookEventPreCompact is triggered before context compaction.
 	HookEventPreCompact = control.HookEventPreCompact
+	// HookEventNotification is triggered when the CLI emits a notification.
+	HookEventNotification = control.HookEventNotification
+	// HookEventSubagentStart is triggered when a subagent starts.
+	HookEventSubagentStart = control.HookEventSubagentStart
+	// HookEventPermissionRequest is triggered when a permission is requested.
+	HookEventPermissionRequest = control.HookEventPermissionRequest
 )
 
 // HookCallback is the function signature for hook callbacks.
@@ -709,6 +715,12 @@ type (
 	SubagentStopHookInput = control.SubagentStopHookInput
 	// PreCompactHookInput is the input for PreCompact hook events.
 	PreCompactHookInput = control.PreCompactHookInput
+	// NotificationHookInput is the input for Notification hook events.
+	NotificationHookInput = control.NotificationHookInput
+	// SubagentStartHookInput is the input for SubagentStart hook events.
+	SubagentStartHookInput = control.SubagentStartHookInput
+	// PermissionRequestHookInput is the input for PermissionRequest hook events.
+	PermissionRequestHookInput = control.PermissionRequestHookInput
 )
 
 // PreToolUseHookSpecificOutput and related types contain hook-specific output fields.
@@ -721,6 +733,12 @@ type (
 	PostToolUseFailureHookSpecificOutput = control.PostToolUseFailureHookSpecificOutput
 	// UserPromptSubmitHookSpecificOutput contains UserPromptSubmit-specific output fields.
 	UserPromptSubmitHookSpecificOutput = control.UserPromptSubmitHookSpecificOutput
+	// NotificationHookSpecificOutput contains Notification-specific output fields.
+	NotificationHookSpecificOutput = control.NotificationHookSpecificOutput
+	// SubagentStartHookSpecificOutput contains SubagentStart-specific output fields.
+	SubagentStartHookSpecificOutput = control.SubagentStartHookSpecificOutput
+	// PermissionRequestHookSpecificOutput contains PermissionRequest-specific output fields.
+	PermissionRequestHookSpecificOutput = control.PermissionRequestHookSpecificOutput
 )
 
 // =============================================================================
