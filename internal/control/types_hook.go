@@ -176,6 +176,10 @@ type NotificationHookInput struct {
 
 // SubagentStartHookInput is the input for SubagentStart hook events.
 // Matches Python SDK's SubagentStartHookInput TypedDict (PR #545).
+// AgentID/AgentType are inherent to this event and are NOT supplied via
+// _SubagentContextMixin; the mixin is a separate construct that lands in
+// Python SDK PR #628 / Phase 2 item #13 and is applied to the four
+// tool-lifecycle inputs at that time, not to this event.
 type SubagentStartHookInput struct {
 	BaseHookInput
 	// HookEventName is always "SubagentStart".
@@ -188,6 +192,11 @@ type SubagentStartHookInput struct {
 
 // PermissionRequestHookInput is the input for PermissionRequest hook events.
 // Matches Python SDK's PermissionRequestHookInput TypedDict (PR #545).
+// AgentID/AgentType are intentionally NOT present here: in Python SDK PR #545
+// this type inherits only from BaseHookInput. The _SubagentContextMixin is a
+// separate construct that lands in Python SDK PR #628 / Phase 2 item #13 and
+// is then applied to PermissionRequestHookInput (alongside the three
+// tool-lifecycle inputs) at that time.
 type PermissionRequestHookInput struct {
 	BaseHookInput
 	// HookEventName is always "PermissionRequest".
@@ -197,7 +206,7 @@ type PermissionRequestHookInput struct {
 	// ToolInput contains the tool's input parameters.
 	ToolInput map[string]any `json:"tool_input"`
 	// PermissionSuggestions carries CLI-provided permission suggestions.
-	// Typed as []any to mirror Python's list[Any] literal type; nil maps
+	// Typed as []any to mirror Python's list[Any] element type; nil maps
 	// to Python's NotRequired absent state.
 	PermissionSuggestions []any `json:"permission_suggestions,omitempty"`
 }
