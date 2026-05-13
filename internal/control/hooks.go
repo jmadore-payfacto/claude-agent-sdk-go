@@ -246,7 +246,6 @@ func (p *Protocol) generateHookRegistrations() []HookRegistration {
 
 // buildHooksConfig creates the hooks config for the initialize request.
 // Format: {"PreToolUse": [{"matcher": "Bash", "hookCallbackIds": ["hook_0"]}], ...}
-// This matches the Python SDK's format exactly for CLI compatibility.
 func (p *Protocol) buildHooksConfig() map[string][]HookMatcherConfig {
 	if p.hooks == nil {
 		return nil

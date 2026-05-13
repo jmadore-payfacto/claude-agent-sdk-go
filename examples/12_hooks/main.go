@@ -15,9 +15,9 @@
 // - Stop: When session is stopping
 // - SubagentStop: When a subagent is stopping
 // - PreCompact: Before context compaction
-// - Notification: When the CLI emits a notification (Python SDK PR #545)
-// - SubagentStart: When a subagent starts (Python SDK PR #545)
-// - PermissionRequest: When a permission is requested (Python SDK PR #545)
+// - Notification: When the CLI emits a notification
+// - SubagentStart: When a subagent starts
+// - PermissionRequest: When a permission is requested
 //
 // NOTE: Hooks are invoked when the CLI sends hook callback requests
 // to the SDK. The callbacks demonstrate the correct API usage pattern

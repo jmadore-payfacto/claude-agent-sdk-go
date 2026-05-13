@@ -15,10 +15,6 @@ const (
 	testToolNameBash  = "Bash"
 )
 
-// =============================================================================
-// Hook Callback Handler Tests
-// =============================================================================
-
 func TestHookCallbackHandler_PreToolUse(t *testing.T) {
 	ctx, cancel := setupHookTestContext(t, 5*time.Second)
 	defer cancel()
@@ -71,8 +67,7 @@ func TestHookCallbackHandler_PreToolUse(t *testing.T) {
 				"hook_event_name": "PreToolUse",
 				"tool_name":       testToolNameBash,
 				"tool_input":      map[string]any{"command": "ls -la"},
-				// tool_use_id added on PreToolUse input in Python SDK PR #545
-				"tool_use_id": "tool_use_inner",
+				"tool_use_id":     "tool_use_inner",
 			},
 			"tool_use_id": toolUseID,
 		},
@@ -152,8 +147,7 @@ func TestHookCallbackHandler_PostToolUse(t *testing.T) {
 				"tool_name":       testToolNameBash,
 				"tool_input":      map[string]any{"command": "ls -la"},
 				"tool_response":   "file1.txt\nfile2.txt",
-				// tool_use_id added on PostToolUse input in Python SDK PR #545
-				"tool_use_id": "tool_use_inner",
+				"tool_use_id":     "tool_use_inner",
 			},
 		},
 	}
@@ -1160,10 +1154,6 @@ func TestHookCallbackHandler_ThreadSafe(t *testing.T) {
 	mu.Unlock()
 }
 
-// =============================================================================
-// Initialize with Hooks Tests
-// =============================================================================
-
 func TestGenerateHookRegistrations(t *testing.T) {
 	callback := func(
 		_ context.Context,
@@ -1288,10 +1278,6 @@ func TestInitializeWithHooks(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Mock Transport for Hook Tests
-// =============================================================================
-
 type hookMockTransport struct {
 	mu          sync.Mutex
 	writtenData [][]byte
@@ -1349,10 +1335,6 @@ func (t *hookMockTransport) injectResponse(requestID string, response map[string
 	data, _ := json.Marshal(resp)
 	t.readChan <- data
 }
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 func setupHookTestContext(t *testing.T, timeout time.Duration) (context.Context, context.CancelFunc) {
 	t.Helper()

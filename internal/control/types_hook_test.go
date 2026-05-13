@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-// =============================================================================
-// Hook Event Tests
-// =============================================================================
-
 func TestHookEventConstants(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -38,9 +34,6 @@ func TestHookEventConstants(t *testing.T) {
 }
 
 func TestHookEventCount(t *testing.T) {
-	// Ensure we have exactly 10 hook events as per Python SDK parity
-	// (PR #535 added PostToolUseFailure; PR #545 added Notification,
-	// SubagentStart, PermissionRequest).
 	events := []HookEvent{
 		HookEventPreToolUse,
 		HookEventPostToolUse,
@@ -55,13 +48,9 @@ func TestHookEventCount(t *testing.T) {
 	}
 
 	if len(events) != 10 {
-		t.Errorf("Expected 10 hook events for Python SDK parity, got %d", len(events))
+		t.Errorf("Expected 10 hook events, got %d", len(events))
 	}
 }
-
-// =============================================================================
-// Hook Input Type Tests
-// =============================================================================
 
 func TestBaseHookInputSerialization(t *testing.T) {
 	input := BaseHookInput{
@@ -81,7 +70,6 @@ func TestBaseHookInputSerialization(t *testing.T) {
 		t.Fatalf("Failed to unmarshal to map: %v", err)
 	}
 
-	// Verify JSON field names match Python SDK
 	assertHookJSONField(t, result, "session_id", "session-123")
 	assertHookJSONField(t, result, "transcript_path", "/tmp/transcript.json")
 	assertHookJSONField(t, result, "cwd", "/home/user/project")
@@ -111,10 +99,8 @@ func TestPreToolUseHookInputSerialization(t *testing.T) {
 		t.Fatalf("Failed to unmarshal to map: %v", err)
 	}
 
-	// Verify JSON field names match Python SDK
 	assertHookJSONField(t, result, "hook_event_name", "PreToolUse")
 	assertHookJSONField(t, result, "tool_name", "Bash")
-	// tool_use_id added in Python SDK PR #545
 	assertHookJSONField(t, result, "tool_use_id", "tool_use_abc")
 
 	toolInput, ok := result["tool_input"].(map[string]any)
@@ -150,11 +136,9 @@ func TestPostToolUseHookInputSerialization(t *testing.T) {
 		t.Fatalf("Failed to unmarshal to map: %v", err)
 	}
 
-	// Verify JSON field names match Python SDK
 	assertHookJSONField(t, result, "hook_event_name", "PostToolUse")
 	assertHookJSONField(t, result, "tool_name", "Bash")
 	assertHookJSONField(t, result, "tool_response", "file1.txt\nfile2.txt")
-	// tool_use_id added in Python SDK PR #545
 	assertHookJSONField(t, result, "tool_use_id", "tool_use_abc")
 }
 
@@ -184,7 +168,6 @@ func TestPostToolUseFailureHookInputSerialization(t *testing.T) {
 		t.Fatalf("Failed to unmarshal to map: %v", err)
 	}
 
-	// Verify JSON field names match Python SDK (PR #535)
 	assertHookJSONField(t, result, "hook_event_name", "PostToolUseFailure")
 	assertHookJSONField(t, result, "tool_name", "Bash")
 	assertHookJSONField(t, result, "tool_use_id", "tool_use_abc")
@@ -315,7 +298,6 @@ func TestSubagentStopHookInputSerialization(t *testing.T) {
 	if result["stop_hook_active"] != false {
 		t.Errorf("stop_hook_active = %v, want false", result["stop_hook_active"])
 	}
-	// agent_* fields added as flat required fields in Python SDK PR #545
 	assertHookJSONField(t, result, "agent_id", "agent_xyz")
 	assertHookJSONField(t, result, "agent_transcript_path", "/tmp/agent_transcript.json")
 	assertHookJSONField(t, result, "agent_type", "researcher")
@@ -376,10 +358,6 @@ func TestPreCompactHookInputSerializationNilCustomInstructions(t *testing.T) {
 		t.Error("custom_instructions should be omitted when nil")
 	}
 }
-
-// =============================================================================
-// Hook Output Type Tests
-// =============================================================================
 
 func TestHookJSONOutputSerialization(t *testing.T) {
 	continueVal := true
@@ -486,7 +464,6 @@ func TestPreToolUseHookSpecificOutputSerialization(t *testing.T) {
 	assertHookJSONField(t, result, "hookEventName", "PreToolUse")
 	assertHookJSONField(t, result, "permissionDecision", "allow")
 	assertHookJSONField(t, result, "permissionDecisionReason", "User approved")
-	// additionalContext added in Python SDK PR #545
 	assertHookJSONField(t, result, "additionalContext", "Be careful when running this")
 
 	updatedInput, ok := result["updatedInput"].(map[string]any)
@@ -539,7 +516,6 @@ func TestPostToolUseHookSpecificOutputSerialization(t *testing.T) {
 
 	assertHookJSONField(t, result, "hookEventName", "PostToolUse")
 	assertHookJSONField(t, result, "additionalContext", "Tool executed with warnings")
-	// updatedMCPToolOutput added in Python SDK PR #545
 	updated, ok := result["updatedMCPToolOutput"].(map[string]any)
 	if !ok {
 		t.Fatal("updatedMCPToolOutput should be a map")
@@ -633,10 +609,6 @@ func TestUserPromptSubmitHookSpecificOutputSerialization(t *testing.T) {
 	assertHookJSONField(t, result, "hookEventName", "UserPromptSubmit")
 	assertHookJSONField(t, result, "additionalContext", "Additional instructions applied")
 }
-
-// =============================================================================
-// New Hook Input Tests (Python SDK PR #545)
-// =============================================================================
 
 func TestNotificationHookInputSerialization(t *testing.T) {
 	title := "Tool Approval Required"
@@ -799,10 +771,6 @@ func TestPermissionRequestHookInputSerializationNilPermissionSuggestions(t *test
 	}
 }
 
-// =============================================================================
-// New Hook-Specific Output Tests (Python SDK PR #545)
-// =============================================================================
-
 func TestNotificationHookSpecificOutputSerialization(t *testing.T) {
 	addCtx := "User dismissed the notification"
 	output := NotificationHookSpecificOutput{
@@ -940,10 +908,6 @@ func TestPermissionRequestHookSpecificOutputEmptyDecision(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Hook Matcher Tests
-// =============================================================================
-
 func TestHookMatcherSerialization(t *testing.T) {
 	timeout := 30.0
 	matcher := HookMatcher{
@@ -1005,10 +969,6 @@ func TestHookMatcherConfigSerialization(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// HookContext Tests
-// =============================================================================
-
 func TestHookContextCreation(t *testing.T) {
 	ctx := context.Background()
 	hookCtx := HookContext{
@@ -1019,10 +979,6 @@ func TestHookContextCreation(t *testing.T) {
 		t.Error("HookContext.Signal should hold the provided context")
 	}
 }
-
-// =============================================================================
-// HookCallback Type Tests
-// =============================================================================
 
 func TestHookCallbackSignature(t *testing.T) {
 	// Verify the callback signature matches expected pattern
@@ -1045,10 +1001,6 @@ func TestHookCallbackSignature(t *testing.T) {
 		t.Error("Empty HookJSONOutput should have nil Continue")
 	}
 }
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 func assertHookJSONField(t *testing.T, result map[string]any, field string, expected string) {
 	t.Helper()

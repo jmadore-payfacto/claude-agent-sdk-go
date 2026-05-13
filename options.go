@@ -57,10 +57,6 @@ type SdkPluginConfig = shared.SdkPluginConfig
 // OutputFormat specifies the format for structured output.
 type OutputFormat = shared.OutputFormat
 
-// =============================================================================
-// Permission Callback Types (Issue #8)
-// =============================================================================
-
 // CanUseToolCallback is invoked when CLI requests permission to use a tool.
 // The callback receives tool name, input parameters, and permission context.
 // Return PermissionResultAllow to permit, PermissionResultDeny to deny.
@@ -513,7 +509,6 @@ func WithDebugDisabled() Option {
 // Lines are stripped of trailing whitespace before being passed to the callback.
 // This takes precedence over WithDebugWriter if both are set.
 // Callback panics are silently recovered to prevent crashing the SDK.
-// Matches Python SDK's stderr callback behavior.
 func WithStderrCallback(callback func(string)) Option {
 	return func(o *Options) {
 		o.StderrCallback = callback
@@ -562,14 +557,9 @@ func WithPartialStreaming() Option {
 	return WithIncludePartialMessages(true)
 }
 
-// =============================================================================
-// File Checkpointing Options (Issue #32)
-// =============================================================================
-
 // WithEnableFileCheckpointing enables or disables file checkpointing.
 // When enabled, file changes are tracked during the session and can be
 // rewound to their state at any user message using Client.RewindFiles().
-// Matches Python SDK's enable_file_checkpointing option.
 func WithEnableFileCheckpointing(enable bool) Option {
 	return func(o *Options) {
 		o.EnableFileCheckpointing = enable
@@ -582,10 +572,6 @@ func WithEnableFileCheckpointing(enable bool) Option {
 func WithFileCheckpointing() Option {
 	return WithEnableFileCheckpointing(true)
 }
-
-// =============================================================================
-// Permission Callback Constructors and Options (Issue #8)
-// =============================================================================
 
 // NewPermissionResultAllow creates an Allow result with proper defaults.
 // Use this to permit tool execution.
@@ -625,7 +611,6 @@ var NewPermissionResultDeny = control.NewPermissionResultDeny
 //
 // The callback must be thread-safe as it may be invoked concurrently.
 // If no callback is set, all tool requests are denied (secure default).
-// Matches Python SDK's can_use_tool callback behavior.
 func WithCanUseTool(callback CanUseToolCallback) Option {
 	return func(o *Options) {
 		// Handle nil callback explicitly
@@ -651,14 +636,10 @@ func WithCanUseTool(callback CanUseToolCallback) Option {
 	}
 }
 
-// =============================================================================
-// Hook Types (Issue #9)
-// =============================================================================
-
 // HookEvent represents lifecycle events that can trigger hooks.
 type HookEvent = control.HookEvent
 
-// Hook event constants matching Python SDK exactly.
+// Hook event constants.
 const (
 	// HookEventPreToolUse is triggered before a tool is executed.
 	HookEventPreToolUse = control.HookEventPreToolUse
@@ -740,10 +721,6 @@ type (
 	// PermissionRequestHookSpecificOutput contains PermissionRequest-specific output fields.
 	PermissionRequestHookSpecificOutput = control.PermissionRequestHookSpecificOutput
 )
-
-// =============================================================================
-// Hook Options (Issue #9)
-// =============================================================================
 
 // WithHooks sets the complete hook configuration for lifecycle events.
 // This replaces any previously configured hooks.
