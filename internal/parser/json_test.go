@@ -819,6 +819,101 @@ func TestEmptyAndWhitespaceHandling(t *testing.T) {
 	}
 }
 
+// TestParseRateLimitEventMessage covers the rate_limit_event heartbeat the
+// CLI emits per session. See issue #126.
+func TestParseRateLimitEventMessage(t *testing.T) {
+	parser := New()
+
+	t.Run("allowed heartbeat", func(t *testing.T) {
+		msg, err := parser.ParseMessage(map[string]any{
+			"type": "rate_limit_event",
+			"rate_limit_info": map[string]any{
+				"status":          "allowed",
+				"resetsAt":        float64(1778598000),
+				"rateLimitType":   "five_hour",
+				"overageStatus":   "allowed",
+				"overageResetsAt": float64(1780272000),
+				"isUsingOverage":  false,
+			},
+			"uuid":       "91eb2b60-b575-4977-a4cb-1733e0939c1b",
+			"session_id": "cca23008-d827-4b92-a8bc-d6f5efe5a03e",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		rl, ok := msg.(*shared.RateLimitEventMessage)
+		if !ok {
+			t.Fatalf("expected *RateLimitEventMessage, got %T", msg)
+		}
+		if rl.Type() != shared.MessageTypeRateLimitEvent {
+			t.Errorf("Type() = %q, want %q", rl.Type(), shared.MessageTypeRateLimitEvent)
+		}
+		if !rl.IsAllowed() {
+			t.Error("IsAllowed() = false, want true")
+		}
+		if rl.RateLimitInfo.RateLimitType != "five_hour" {
+			t.Errorf("RateLimitType = %q, want %q", rl.RateLimitInfo.RateLimitType, "five_hour")
+		}
+		if rl.RateLimitInfo.ResetsAt != 1778598000 {
+			t.Errorf("ResetsAt = %d, want 1778598000", rl.RateLimitInfo.ResetsAt)
+		}
+		if rl.UUID != "91eb2b60-b575-4977-a4cb-1733e0939c1b" {
+			t.Errorf("UUID = %q", rl.UUID)
+		}
+		if rl.SessionID != "cca23008-d827-4b92-a8bc-d6f5efe5a03e" {
+			t.Errorf("SessionID = %q", rl.SessionID)
+		}
+	})
+
+	t.Run("non-allowed status", func(t *testing.T) {
+		msg, err := parser.ParseMessage(map[string]any{
+			"type": "rate_limit_event",
+			"rate_limit_info": map[string]any{
+				"status":        "blocked",
+				"resetsAt":      float64(1778600000),
+				"rateLimitType": "five_hour",
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		rl := msg.(*shared.RateLimitEventMessage)
+		if rl.IsAllowed() {
+			t.Error("IsAllowed() = true for status=blocked")
+		}
+		if rl.RateLimitInfo.Status != "blocked" {
+			t.Errorf("Status = %q, want %q", rl.RateLimitInfo.Status, "blocked")
+		}
+	})
+
+	t.Run("missing rate_limit_info is parse error", func(t *testing.T) {
+		_, err := parser.ParseMessage(map[string]any{
+			"type": "rate_limit_event",
+		})
+		if err == nil {
+			t.Fatal("expected error for missing rate_limit_info, got nil")
+		}
+	})
+
+	t.Run("missing optional uuid and session_id is ok", func(t *testing.T) {
+		msg, err := parser.ParseMessage(map[string]any{
+			"type": "rate_limit_event",
+			"rate_limit_info": map[string]any{
+				"status":        "allowed",
+				"resetsAt":      float64(1),
+				"rateLimitType": "five_hour",
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		rl := msg.(*shared.RateLimitEventMessage)
+		if rl.UUID != "" || rl.SessionID != "" {
+			t.Errorf("expected empty optional fields, got uuid=%q session_id=%q", rl.UUID, rl.SessionID)
+		}
+	})
+}
+
 // TestParseMessages tests the convenience function
 func TestParseMessages(t *testing.T) {
 	// Test successful parsing
